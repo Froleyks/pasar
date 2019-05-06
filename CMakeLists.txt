@@ -19,11 +19,11 @@ add_custom_command(
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sat/glucose4
   )
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/sat/glucose4)
-add_executable(pasar_glucose ${SOURCE_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/sat/glucose4/libipasirglucose4.a)
-target_link_libraries(pasar_glucose ipasirglucose4.a)
+add_executable(ADAL_glucose ${SOURCE_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/sat/glucose4/libipasirglucose4.a)
+target_link_libraries(ADAL_glucose ipasirglucose4.a)
 add_custom_target(run_glucose
-  ./pasar_glucose ${RUN_PARAMS}
-  DEPENDS pasar_glucose
+  ./ADAL_glucose ${RUN_PARAMS}
+  DEPENDS ADAL_glucose
 )
 
 # minisat
@@ -33,11 +33,11 @@ add_custom_command(
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sat/minisat220
   )
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/sat/minisat220)
-add_executable(pasar_minisat ${SOURCE_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/sat/minisat220/libipasirminisat220.a)
-target_link_libraries(pasar_minisat ipasirminisat220.a)
+add_executable(ADAL_minisat ${SOURCE_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/sat/minisat220/libipasirminisat220.a)
+target_link_libraries(ADAL_minisat ipasirminisat220.a)
 add_custom_target(run_minisat
-  ./pasar_minisat ${RUN_PARAMS}
-  DEPENDS pasar_minisat
+  ./ADAL_minisat ${RUN_PARAMS}
+  DEPENDS ADAL_minisat
 )
 
 # lingeling
@@ -48,12 +48,12 @@ add_custom_command(
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sat/lingeling
   )
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/sat/lingeling)
-add_executable(pasar_lingeling ${SOURCE_FILES} sat/lingeling/Lingeling.cpp ${CMAKE_CURRENT_SOURCE_DIR}/sat/lingeling/liblgl.a)
-target_link_libraries(pasar_lingeling lgl.a)
-target_compile_options(pasar_lingeling PRIVATE "-llgl")
+add_executable(ADAL_lingeling ${SOURCE_FILES} sat/lingeling/Lingeling.cpp ${CMAKE_CURRENT_SOURCE_DIR}/sat/lingeling/liblgl.a)
+target_link_libraries(ADAL_lingeling lgl.a)
+target_compile_options(ADAL_lingeling PRIVATE "-llgl")
 add_custom_target(run_lingeling
-  ./pasar_lingeling ${RUN_PARAMS}
-  DEPENDS pasar_lingeling
+  ./ADAL_lingeling ${RUN_PARAMS}
+  DEPENDS ADAL_lingeling
 )
 
 # picosat
@@ -63,11 +63,11 @@ add_custom_command(
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sat/picosat961
   )
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/sat/picosat961)
-add_executable(pasar_picosat ${SOURCE_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/sat/picosat961/libipasirpicosat961.a)
-target_link_libraries(pasar_picosat ipasirpicosat961.a)
+add_executable(ADAL_picosat ${SOURCE_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/sat/picosat961/libipasirpicosat961.a)
+target_link_libraries(ADAL_picosat ipasirpicosat961.a)
 add_custom_target(run_picosat
-  ./pasar_picosat ${RUN_PARAMS}
-  DEPENDS pasar_picosat
+  ./ADAL_picosat ${RUN_PARAMS}
+  DEPENDS ADAL_picosat
 )
 
 add_compile_options(${Warnings})
