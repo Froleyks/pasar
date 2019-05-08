@@ -8,6 +8,7 @@ set (RUN_PARAMS
 
 set (SOURCE_FILES
   src/main.cpp
+  src/problem/problem.cpp
   )
 
 set (CMAKE_CXX_FLAGS "-std=c++17 -msse4.2 -g -O3 -march=native")

@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "problem/problem.hpp"
 #include "tools/logger.hpp"
 #include "tools/parameter_processor.hpp"
 
@@ -10,8 +11,11 @@ int main(int argc, char *argv[]) {
     params.printDefaults();
     return 1;
   }
-  Logger::logHostname();
   int verbosity = params.getInt("v");
-  Logger::setLogLevel(verbosity);
+  Logger::initLogger(verbosity);
+
+  Logger::logHostname();
+
+  Problem problem(params.getFilename());
   return 0;
 }
