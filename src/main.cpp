@@ -89,11 +89,11 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     // greedy best first search
     solver.setAbstractionTimeout(0);
     solver.setSearchTimeout(-1);
-    CegarForeach abstraction(problem);
+    NoGuidance abstraction(problem);
     GreedyBestFirst search(problem);
     while (!solved) {
-      solved = solver.findPlan<CegarForeach, GreedyBestFirst>(abstraction,
-                                                              search, plan);
+      solved = solver.findPlan<NoGuidance, GreedyBestFirst>(abstraction, search,
+                                                            plan);
     }
     break;
   }
