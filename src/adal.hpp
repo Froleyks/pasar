@@ -1,5 +1,6 @@
 #pragma once
 
+#include "src/learn_actions.hpp"
 #include "src/problem/problem.hpp"
 #include "src/search/search.hpp"
 #include "src/type_defs.hpp"
@@ -8,7 +9,6 @@
 #include "src/search/depth_first_search.hpp"
 
 #include "abstraction/cegar_foreach.hpp"
-
 
 class ADAL {
 private:
@@ -123,51 +123,6 @@ private:
     }
   }
 
-  void contractPlan(const std::vector<action_t> &plan, size_t first,
-                    size_t last, Assignment &pre, Assignment &eff) {
-    State expPre(problem.numVariables, unassigned);
-    State expEff(problem.numVariables, unassigned);
-    for (size_t s = first; s <= last; ++s) {
-      for (auto [variable, value] : problem.pre[plan[s]]) {
-        if (expEff[variable] != value) {
-          expPre[variable] = value;
-        }
-      }
-      for (auto [variable, value] : problem.eff[plan[s]]) {
-        expEff[variable] = value;
-      }
-    }
-    for (size_t i = 0; i < expPre.size(); ++i) {
-      if (expPre[i] != unassigned) {
-        pre.emplace_back(i, expPre[i]);
-      }
-    }
-    for (size_t i = 0; i < expEff.size(); ++i) {
-      if (expEff[i] != unassigned) {
-        eff.emplace_back(i, expEff[i]);
-      }
-    }
-  }
-
-  action_t addActionToProblem(const std::vector<action_t> &plan, size_t first,
-                              size_t last) {
-    problem.numActions++;
-    problem.pre.emplace_back();
-    problem.eff.emplace_back();
-    contractPlan(plan, first, last, problem.pre.back(), problem.eff.back());
-
-    // add witness
-    problem.witness.push_back(plan);
-
-    log(5) << "learned action " << problem.pre.size() - 1 << " skips "
-           << plan.size();
-    return problem.pre.size() - 1;
-  }
-
-  action_t addActionToProblem(const std::vector<action_t> &plan) {
-    return addActionToProblem(plan, 0, plan.size() - 1);
-  }
-
   // tries to fix each step of the abstract plan, adds learned actions and may
   // reduce the states
   template <class Abstraction>
@@ -190,7 +145,7 @@ private:
           // one or no action
           plan[s] = planForStep[0];
         } else {
-          plan[s] = addActionToProblem(planForStep);
+          plan[s] = addActionToProblem(problem, planForStep);
         }
       } else {
         fixedPlan = false;
@@ -218,7 +173,7 @@ private:
           }
         }
       } else {
-        addActionToProblem(plan, first, s - 1);
+        addActionToProblem(problem, plan, first, s - 1);
         first = planLength;
         // add the last state of every shortcut
         guideStates.push_back(abstractPlan.states[s]);
@@ -226,7 +181,7 @@ private:
       }
     }
     if (stepFixed.back()) {
-      addActionToProblem(plan, first, planLength - 1);
+      addActionToProblem(problem, plan, first, planLength - 1);
     }
     guideStates.push_back(abstractPlan.states.back());
     originalIndex.push_back(planLength - 1);
@@ -309,7 +264,7 @@ public:
     }
 
     // refine abstraction
-    size_t firstUnsolved = search.lastGuideState();
+    size_t firstUnsolved = search.firstGuideState;
     if (contraction) {
       firstUnsolved = originalIndex[firstUnsolved];
     }
