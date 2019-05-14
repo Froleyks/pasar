@@ -9,6 +9,8 @@ set (RUN_PARAMS
 set (SOURCE_FILES
   src/main.cpp
   src/problem/problem.cpp
+  src/search/greedy_best_first.cpp
+  src/search/depth_first_search.cpp
   )
 
 set (CMAKE_CXX_FLAGS "-std=c++17 -msse4.2 -g -O3 -march=native")

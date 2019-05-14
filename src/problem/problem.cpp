@@ -1,5 +1,9 @@
 #include "problem.hpp"
 
+#include <algorithm>
+
+#include "src/search/state_hash.hpp"
+
 inline void
 Problem::parseVariable(std::ifstream &in,
                        std::vector<std::pair<variable_t, bool>> &mapping) {
@@ -25,7 +29,7 @@ Problem::parseVariable(std::ifstream &in,
     // is prepositional
     mapping.emplace_back(numPreposition++, true);
   } else {
-    numValues[numFinDomain] = numValuesOfVariable;
+    numValues.push_back(numValuesOfVariable);
     mapping.emplace_back(numFinDomain++, false);
   }
 
@@ -40,7 +44,6 @@ Problem::parseAction(std::ifstream &in,
                      const std::vector<variable_t> &variablePermutation) {
   pre.emplace_back();
   eff.emplace_back();
-  disable.emplace_back();
   // TODO: I don't know why this is necessary
   // Advance the sream by one char
   in.get();
@@ -75,20 +78,11 @@ Problem::parseAction(std::ifstream &in,
         log(1) << "Warning: Ignoring conditional effects. Parsing might break!";
       }
     }
+
     if (oldValues != -1) {
       pre.back().emplace_back(varIndex, oldValues);
-      // TODO: At Most One value
-      // is an explicit at most one better?
-
-      disable.back().emplace_back(varIndex, oldValues);
-    } else {
-      for (size_t other = 0; other < numValues[varIndex]; ++other) {
-        if (other == newValue) {
-          continue;
-        }
-        disable.back().emplace_back(varIndex, other);
-      }
     }
+
     eff.back().emplace_back(varIndex, newValue);
   }
   int operatorCost;
@@ -103,7 +97,6 @@ Problem::parseAction(std::ifstream &in,
   // sort vectors for more cache efficient access
   std::sort(pre.back().begin(), pre.back().end());
   std::sort(eff.back().begin(), eff.back().end());
-  std::sort(disable.back().begin(), disable.back().end());
 }
 
 inline void
@@ -123,8 +116,16 @@ Problem::parseMutex(std::ifstream &in,
 }
 
 void Problem::load(std::string file) {
-  enum PareseState { preamble, variable, mutex, initial, goal, action, axiom };
-  PareseState state = preamble;
+  enum PareseState {
+    s_preamble,
+    s_variable,
+    s_mutex,
+    s_initial,
+    s_goal,
+    s_action,
+    s_axiom
+  };
+  PareseState state = s_preamble;
   std::ifstream in(file);
   if (!in.good()) {
     throw std::runtime_error("file error");
@@ -136,13 +137,13 @@ void Problem::load(std::string file) {
   std::vector<variable_t> variablePermutation;
   while (in.good()) {
     switch (state) {
-    case preamble: {
+    case s_preamble: {
       in >> token;
       if (token == "end_metric") {
-        state = variable;
+        state = s_variable;
       }
     } break;
-    case variable: {
+    case s_variable: {
       in >> numVariables;
       if (numVariables > maxNumVariables) {
         log(1) << "Warning: Too many Variables";
@@ -164,10 +165,10 @@ void Problem::load(std::string file) {
           variablePermutation.back() += numFinDomain;
         }
       }
-      state                      = mutex;
+      state                      = s_mutex;
       CompactState::numFinDomain = numFinDomain;
     } break;
-    case mutex: {
+    case s_mutex: {
       unsigned numMutexes;
       in >> numMutexes;
       mutexes.resize(numMutexes);
@@ -178,9 +179,9 @@ void Problem::load(std::string file) {
         in >> token;
         assert(token == "end_mutex_group");
       }
-      state = initial;
+      state = s_initial;
     } break;
-    case initial: {
+    case s_initial: {
       in >> token;
       assert(token == "begin_state");
       initialState.resize(numVariables);
@@ -191,9 +192,9 @@ void Problem::load(std::string file) {
       }
       in >> token;
       assert(token == "end_state");
-      state = goal;
+      state = s_goal;
     } break;
-    case goal: {
+    case s_goal: {
       in >> token;
       assert(token == "begin_goal");
       int numGoals;
@@ -202,22 +203,22 @@ void Problem::load(std::string file) {
       for (size_t i = 0; i < numGoals; ++i) {
         int varIndex, value;
         in >> varIndex >> value;
-        varIndex            = variablePermutation[varIndex];
+        varIndex = variablePermutation[varIndex];
+        goal.emplace_back(varIndex, value);
         goalState[varIndex] = value;
       }
       in >> token;
       assert(token == "end_goal");
-      state = action;
+      state = s_action;
     } break;
-    case action: {
+    case s_action: {
       in >> numActions;
       lastOriginalAction = numActions - 1;
-      if (maxNumActions > numActions) {
-        log(1) << "Warning: Too many actions";
+      if (numActions > maxNumActions) {
+        log(1) << "Warning: Too many actions " << numActions;
       }
       pre.reserve(numActions);
       eff.reserve(numActions);
-      disable.reserve(numActions);
       for (size_t i = 0; i < numActions; ++i) {
         in >> token;
         assert(token == "begin_operator");
@@ -225,9 +226,9 @@ void Problem::load(std::string file) {
         in >> token;
         assert(token == "end_operator");
       }
-      state = axiom;
+      state = s_axiom;
     } break;
-    case axiom: {
+    case s_axiom: {
       in >> token;
       if (token != "0") {
         static bool once = true;
@@ -239,4 +240,56 @@ void Problem::load(std::string file) {
     } break;
     }
   }
+}
+
+void Problem::removeLearnedActions(std::vector<action_t> &planWithLearned) {
+  std::vector<action_t> plan;
+  bool removedAction;
+  do {
+    removedAction = false;
+    plan.clear();
+    for (auto a : planWithLearned) {
+      if (a == noop) {
+        continue;
+      }
+      if (a > lastOriginalAction) {
+        removedAction = true;
+        log(4) << "Removed learned action " << a << " inserted "
+               << witness[a - lastOriginalAction - 1].size();
+        plan.insert(plan.end(), witness[a - lastOriginalAction - 1].begin(),
+                    witness[a - lastOriginalAction - 1].end());
+      } else {
+        plan.push_back(a);
+      }
+    }
+    planWithLearned = std::move(plan);
+    plan.clear();
+  } while (removedAction);
+}
+
+std::string Problem::planToString(std::string file,
+                                  std::vector<action_t> &plan) {
+  if (plan.empty()) {
+    return "";
+  }
+  action_t actionsToExtract = *std::max_element(plan.begin(), plan.end()) + 1;
+  // read problem file again to get names
+  std::vector<std::string> actionNames;
+  actionNames.reserve(actionsToExtract);
+  std::ifstream in(file);
+  std::string line = "";
+  bool isName      = false;
+  while (std::getline(in, line) && actionsToExtract) {
+    if (isName) {
+      actionNames.push_back(line);
+      actionsToExtract--;
+    }
+    isName = (line == "begin_operator");
+  }
+
+  std::ostringstream out;
+  for (size_t i = 0; i < plan.size(); ++i) {
+    out << i << ": (" << actionNames[plan[i]] << ")" << std::endl;
+  }
+  return out.str();
 }

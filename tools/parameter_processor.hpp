@@ -48,11 +48,12 @@ public:
         char *p;
         strtok(arg, ".");
         p = strtok(NULL, ".");
-        if (p) {
-          extension            = std::string(p);
-          filenames[extension] = filename;
-          lastAddedFilename    = filename;
+        while (p) {
+          extension = std::string(p);
+          p         = strtok(NULL, ".");
         }
+        filenames[extension] = filename;
+        lastAddedFilename    = filename;
       }
     }
   }
@@ -117,6 +118,9 @@ public:
 
   void addDefault(std::string name, std::string defaultValue,
                   std::string description) {
+    if (parameters.find(name) == parameters.end()) {
+      parameters[name] = defaultValue;
+    }
     defaultParameters.emplace_back(name, defaultValue, description);
   }
 
