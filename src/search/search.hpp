@@ -11,7 +11,6 @@
 class BaseSearch {
 private:
 protected:
-
   // sort actions by gain
   struct WeightedAction {
     int gain;
@@ -64,8 +63,47 @@ protected:
   }
 
   inline double gainOfAssignment(const Assignment &a, const State &state,
-                                 std::vector<State> &guideStates,
-                                 const bool randomize = true) {
+                                 const std::vector<State> &guideStates,
+                                 bool &newGuideHint) {
+    double gain  = 0;
+    double decay = 1;
+    // start from actual goal
+    for (int s = guideStates.size() - 1; s >= (int)firstGuideState; --s) {
+      // if the already found guide state index is better don't bother
+      bool mightReacheGuide = true;
+      // compute change in hamming distance
+      int stepGain = 0;
+      for (auto [variable, value] : a) {
+        if (guideStates[s][variable] == unassigned) {
+          continue;
+        }
+        if (guideStates[s][variable] == value) {
+          if (state[variable] != value) {
+            stepGain += 1;
+          }
+        } else {
+          if (state[variable] == guideStates[s][variable]) {
+            mightReacheGuide = false;
+            stepGain -= 1;
+          }
+        }
+      }
+      mightReacheGuide = mightReacheGuide && stepGain;
+      newGuideHint |= mightReacheGuide;
+      gain += stepGain * decay;
+      decay *= gainDecayFactor;
+    }
+
+    // random tie-breaking
+    gain *= noiseRange;
+    const double noise = ((double)rand() * noiseRange) / RAND_MAX;
+    gain += noise;
+
+    return gain;
+  }
+
+  inline double gainOfAssignment(const Assignment &a, const State &state,
+                                 std::vector<State> &guideStates) {
     double gain  = 0;
     double decay = 1;
     // start from actual goal
@@ -91,12 +129,10 @@ protected:
       decay *= gainDecayFactor;
     }
 
-    if (randomize) {
-      // random tie-breaking
-      gain *= noiseRange;
-      const double noise = ((double)rand() * noiseRange) / RAND_MAX;
-      gain += noise;
-    }
+    // random tie-breaking
+    gain *= noiseRange;
+    const double noise = ((double)rand() * noiseRange) / RAND_MAX;
+    gain += noise;
 
     return gain;
   }
@@ -171,17 +207,20 @@ protected:
     }
   }
 
-  inline void updateApplicableActions(const State &state,
+  // return a hint if a guide state could be reached
+  inline bool updateApplicableActions(const State &state,
                                       const Assignment &newValues,
                                       std::vector<State> &guideStates,
                                       WeightedActionSet &appActions) {
+    bool newGuideHint = false;
     // remove no longer applicable actions
     WeightedActionSet oldAppActions = std::move(appActions);
     appActions.clear();
     for (auto [gain, action] : oldAppActions) {
       if (assignmentHolds(problem.pre[action], state)) {
-        appActions.emplace(
-            gainOfAssignment(problem.eff[action], state, guideStates), action);
+        appActions.emplace(gainOfAssignment(problem.eff[action], state,
+                                            guideStates, newGuideHint),
+                           action);
       }
     }
 
@@ -190,11 +229,13 @@ protected:
       // all actions which have variable == value as a precondition
       for (auto a : actionSupport[variable][value]) {
         if (assignmentHolds(problem.pre[a], state)) {
-          appActions.emplace(
-              gainOfAssignment(problem.eff[a], state, guideStates), a);
+          appActions.emplace(gainOfAssignment(problem.eff[a], state,
+                                              guideStates, newGuideHint),
+                             a);
         }
       }
     }
+    return newGuideHint;
   }
 
 public:
@@ -219,4 +260,5 @@ public:
       state[variable] = value;
     }
   }
+  size_t firstGuideState = 0;
 };

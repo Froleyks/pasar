@@ -1,23 +1,38 @@
 #include "greedy_best_first.hpp"
 
-#include <set>
+#include "src/learn_actions.hpp"
 
-// private
-inline void GreedyBestFirst::assignGain(State &state,
-                                        std::vector<State> &guideStates,
-                                        std::vector<action_t> &appActions,
-                                        std::vector<double> &weights) {
-  weights.clear();
-  weights.reserve(appActions.size());
-  for (int a = 0; a < appActions.size(); ++a) {
-    weights.emplace_back(
-        gainOfAssignment(problem.eff[appActions[a]], state, guideStates));
-  }
-}
+#include <set>
 
 // public
 GreedyBestFirst::GreedyBestFirst(Problem &problem) : BaseSearch(problem) {
   computeActionSupport();
+}
+
+inline void GreedyBestFirst::updateGuideState(
+    State &state, std::vector<State> &guideStates, std::vector<action_t> &plan,
+    std::vector<std::pair<int, size_t>> &milestones) {
+  for (int s = guideStates.size() - 2; s >= (int)firstGuideState; --s) {
+    bool satisfied = true;
+    for (variable_t variable = 0; variable < state.size(); ++variable) {
+      if (guideStates[s][variable] == unassigned) {
+        continue;
+      }
+      if (guideStates[s][variable] != state[variable]) {
+        satisfied = false;
+        break;
+      }
+    }
+
+    if (satisfied) {
+      // learn action to jump from last found guide state to this one
+      action_t a = addActionToProblem(problem, plan, milestones.back().second,
+                                      plan.size() - 1);
+      log(4) << "added state space search action " << a;
+      milestones.emplace_back(firstGuideState, plan.size());
+      firstGuideState = s + 1;
+    }
+  }
 }
 
 bool GreedyBestFirst::search(std::vector<State> &guideStates,
@@ -36,7 +51,12 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
   WeightedActionSet appActions;
   getApplicableActions(state, guideStates, appActions);
 
-  size_t checkTime = 0;
+  // encountered guideState <first> at plan index <second>
+  std::vector<std::pair<int, size_t>> milestones = {{-1, 0}};
+  milestones.reserve(guideStates.size());
+
+  size_t checkTime      = 0;
+  bool hintReachedGuide = false;
   while (!assignmentHolds(problem.goal, state)) {
     if (checkTime++ % 128 == 0 && Logger::getTime() > endTime) {
       plan.clear();
@@ -54,6 +74,12 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
       updateApplicableActions(state, changeHistory.back(), guideStates,
                               appActions);
       changeHistory.pop_back();
+      // action that will be removed is a milestone
+      if (plan.size() < milestones.back().second) {
+        firstGuideState = milestones.back().first;
+        milestones.pop_back();
+      }
+      hintReachedGuide = false;
       plan.pop_back();
     } else {
       bool appliedAction = false;
@@ -68,9 +94,12 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
           plan.push_back(a);
           changeHistory.push_back(oldValues);
           applyAssignment(problem.eff[a], state);
-          updateApplicableActions(state, problem.eff[a], guideStates,
-                                  appActions);
-          appliedAction = true;
+          if (hintReachedGuide) {
+            updateGuideState(state, guideStates, plan, milestones);
+          }
+          hintReachedGuide = updateApplicableActions(state, problem.eff[a],
+                                                     guideStates, appActions);
+          appliedAction    = true;
           break;
         }
       }
@@ -86,11 +115,15 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
         updateApplicableActions(state, changeHistory.back(), guideStates,
                                 appActions);
         changeHistory.pop_back();
+        // action that will be removed is a milestone
+        if (plan.size() < milestones.back().second) {
+          firstGuideState = milestones.back().first;
+          milestones.pop_back();
+        }
+        hintReachedGuide = false;
         plan.pop_back();
       }
     }
   }
   return true;
 }
-
-size_t GreedyBestFirst::lastGuideState() { return lastGuide; }
