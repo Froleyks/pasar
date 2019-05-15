@@ -11,8 +11,12 @@ GreedyBestFirst::GreedyBestFirst(Problem &problem) : BaseSearch(problem) {
 
 inline void GreedyBestFirst::updateGuideState(
     State &state, std::vector<State> &guideStates, std::vector<action_t> &plan,
-    std::vector<std::pair<int, size_t>> &milestones) {
+    std::vector<std::pair<int, size_t>> &milestones,
+    std::vector<char> &reachedGuideHint) {
   for (int s = guideStates.size() - 2; s >= (int)firstGuideState; --s) {
+    if (!reachedGuideHint[s]) {
+      continue;
+    }
     bool satisfied = true;
     for (variable_t variable = 0; variable < state.size(); ++variable) {
       if (guideStates[s][variable] == unassigned) {
@@ -55,8 +59,10 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
   std::vector<std::pair<int, size_t>> milestones = {{-1, 0}};
   milestones.reserve(guideStates.size());
 
-  size_t checkTime      = 0;
-  bool hintReachedGuide = false;
+  size_t checkTime = 0;
+  // used to indicate if there is an action in the set of applicable actions
+  // that might reach this state
+  std::vector<char> reachedGuideHint(guideStates.size(), false);
   while (!assignmentHolds(problem.goal, state)) {
     if (checkTime++ % 128 == 0 && Logger::getTime() > endTime) {
       plan.clear();
@@ -79,7 +85,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
         firstGuideState = milestones.back().first;
         milestones.pop_back();
       }
-      hintReachedGuide = false;
+      reachedGuideHint.resize(guideStates.size(), false);
       plan.pop_back();
     } else {
       bool appliedAction = false;
@@ -94,12 +100,11 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
           plan.push_back(a);
           changeHistory.push_back(oldValues);
           applyAssignment(problem.eff[a], state);
-          if (hintReachedGuide) {
-            updateGuideState(state, guideStates, plan, milestones);
-          }
-          hintReachedGuide = updateApplicableActions(state, problem.eff[a],
-                                                     guideStates, appActions);
-          appliedAction    = true;
+          updateGuideState(state, guideStates, plan, milestones,
+                           reachedGuideHint);
+          updateApplicableActions(state, problem.eff[a], guideStates,
+                                  appActions, reachedGuideHint);
+          appliedAction = true;
           break;
         }
       }
@@ -120,7 +125,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
           firstGuideState = milestones.back().first;
           milestones.pop_back();
         }
-        hintReachedGuide = false;
+        reachedGuideHint.resize(guideStates.size(), false);
         plan.pop_back();
       }
     }

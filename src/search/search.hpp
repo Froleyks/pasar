@@ -64,12 +64,11 @@ protected:
 
   inline double gainOfAssignment(const Assignment &a, const State &state,
                                  const std::vector<State> &guideStates,
-                                 bool &newGuideHint) {
+                                 std::vector<char> &reachedGuideHint) {
     double gain  = 0;
     double decay = 1;
     // start from actual goal
     for (int s = guideStates.size() - 1; s >= (int)firstGuideState; --s) {
-      // if the already found guide state index is better don't bother
       bool mightReacheGuide = true;
       // compute change in hamming distance
       int stepGain = 0;
@@ -89,7 +88,7 @@ protected:
         }
       }
       mightReacheGuide = mightReacheGuide && stepGain;
-      newGuideHint |= mightReacheGuide;
+      reachedGuideHint[s] |= mightReacheGuide;
       gain += stepGain * decay;
       decay *= gainDecayFactor;
     }
@@ -207,19 +206,46 @@ protected:
     }
   }
 
-  // return a hint if a guide state could be reached
-  inline bool updateApplicableActions(const State &state,
+  inline void updateApplicableActions(const State &state,
                                       const Assignment &newValues,
                                       std::vector<State> &guideStates,
                                       WeightedActionSet &appActions) {
-    bool newGuideHint = false;
+    // remove no longer applicable actions
+    WeightedActionSet oldAppActions = std::move(appActions);
+    appActions.clear();
+    for (auto [gain, action] : oldAppActions) {
+      if (assignmentHolds(problem.pre[action], state)) {
+        appActions.emplace(
+            gainOfAssignment(problem.eff[action], state, guideStates), action);
+      }
+    }
+
+    // actions that might become available
+    for (auto [variable, value] : newValues) {
+      // all actions which have variable == value as a precondition
+      for (auto a : actionSupport[variable][value]) {
+        if (assignmentHolds(problem.pre[a], state)) {
+          appActions.emplace(
+              gainOfAssignment(problem.eff[a], state, guideStates), a);
+        }
+      }
+    }
+  }
+
+  // return a hint if a guide state could be reached
+  inline void updateApplicableActions(const State &state,
+                                      const Assignment &newValues,
+                                      std::vector<State> &guideStates,
+                                      WeightedActionSet &appActions,
+                                      std::vector<char> &reachedGuideHint) {
+    reachedGuideHint.resize(guideStates.size(), false);
     // remove no longer applicable actions
     WeightedActionSet oldAppActions = std::move(appActions);
     appActions.clear();
     for (auto [gain, action] : oldAppActions) {
       if (assignmentHolds(problem.pre[action], state)) {
         appActions.emplace(gainOfAssignment(problem.eff[action], state,
-                                            guideStates, newGuideHint),
+                                            guideStates, reachedGuideHint),
                            action);
       }
     }
@@ -230,12 +256,11 @@ protected:
       for (auto a : actionSupport[variable][value]) {
         if (assignmentHolds(problem.pre[a], state)) {
           appActions.emplace(gainOfAssignment(problem.eff[a], state,
-                                              guideStates, newGuideHint),
+                                              guideStates, reachedGuideHint),
                              a);
         }
       }
     }
-    return newGuideHint;
   }
 
 public:
