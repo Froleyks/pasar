@@ -42,7 +42,7 @@ private:
   std::ostringstream os;
 
 public:
-  Log() {}
+  Log() : os() {}
   ~Log();
   std::ostringstream &get(int level);
 };

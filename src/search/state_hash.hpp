@@ -30,8 +30,8 @@ struct CompactState {
       oldValue     = finDomain[i];
       finDomain[i] = value;
     } else {
-      oldValue                      = preposition[i - numFinDomain];
-      preposition[i - numFinDomain] = value;
+      oldValue = preposition[static_cast<size_t>(i - numFinDomain)];
+      preposition[static_cast<size_t>(i - numFinDomain)] = value;
     }
     return oldValue;
   }

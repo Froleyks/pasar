@@ -29,7 +29,7 @@ void addDefaults(ParameterProcessor &params) {
                     "sparsification\n"
                     "\t0: complete states\n"
                     "\t1: partial states\n"
-                    "\t2: action elimination\n");
+                    "\t2: action elimination");
   params.addDefault(
       "cont", "0",
       "1: additional actions are learned and fewer guide states are used");
@@ -76,7 +76,7 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
   case 3: {
     // cegar foreach
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(1);
+    solver.setSearchTimeout(0.01);
     CegarForeach abstraction(problem);
     GreedyBestFirst search(problem);
     while (!solved) {

@@ -126,25 +126,26 @@ public:
 
   void printDefaults() {
     std::cout << "###Default Parameters###" << std::endl;
-    int maxName        = -1;
-    int maxValue       = -1;
-    int maxDescription = -1;
+    size_t maxName        = 0;
+    size_t maxValue       = 0;
+    size_t maxDescription = 0;
     for (auto [name, defaultValue, description] : defaultParameters) {
-      if ((int)name.length() > maxName) {
+      if (name.length() > maxName) {
         maxName = name.length();
       }
-      if ((int)defaultValue.length() > maxValue) {
+      if (defaultValue.length() > maxValue) {
         maxValue = defaultValue.length();
       }
-      if ((int)description.length() > maxDescription) {
+      if (description.length() > maxDescription) {
         maxDescription = description.length();
       }
     }
     maxName++;
     maxValue++;
     for (auto [name, defaultValue, description] : defaultParameters) {
-      std::cout << std::right << std::setw(maxName) << name;
-      std::cout << std::right << std::setw(maxValue) << defaultValue << "  ";
+      std::cout << std::right << std::setw(static_cast<int>(maxName)) << name;
+      std::cout << std::right << std::setw(static_cast<int>(maxValue))
+                << defaultValue << "  ";
       std::cout << std::left << description;
       std::cout << std::endl;
     }

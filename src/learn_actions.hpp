@@ -46,7 +46,7 @@ inline action_t addActionToProblem(Problem &problem,
 
   log(5) << "learned action " << problem.pre.size() - 1 << " skips "
          << plan.size();
-  return problem.pre.size() - 1;
+  return static_cast<action_t>(problem.pre.size() - 1);
 }
 
 inline action_t addActionToProblem(Problem &problem,
