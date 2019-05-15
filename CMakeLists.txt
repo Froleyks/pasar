@@ -43,7 +43,7 @@ set (SOURCE_FILES
   src/search/depth_first_search.cpp
   )
 
-set (CMAKE_CXX_FLAGS "-std=c++17 -msse4.2 -g -O0 -march=native")
+set (CMAKE_CXX_FLAGS "-std=c++17 -msse4.2 -g -O3 -march=native")
 
 add_custom_command(OUTPUT problem.plan
   COMMAND ./ADAL_glucose ${RUN_PARAMS} -planfile problem.plan
