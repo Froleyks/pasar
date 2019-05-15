@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/problem/problem.hpp"
+#include "src/type_defs.hpp"
 
 struct CompactState {
   inline static variable_t numFinDomain;

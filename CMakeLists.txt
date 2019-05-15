@@ -39,7 +39,6 @@ add_compile_options(
 
 set (SOURCE_FILES
   src/main.cpp
-  src/problem/problem.cpp
   src/search/greedy_best_first.cpp
   src/search/depth_first_search.cpp
   )
