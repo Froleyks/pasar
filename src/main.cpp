@@ -37,11 +37,11 @@ void addDefaults(ParameterProcessor &params) {
 
 bool runSchedule(ADAL &solver, Problem &problem, int schedule,
                  std::vector<action_t> &plan) {
-  log(2) << "running schedule " << schedule;
+
   bool solved = false;
   switch (schedule) {
   case 0: {
-    // depth first search
+    log(2) << "running schedule " << schedule << " depth first search";
     solver.setAbstractionTimeout(0);
     solver.setSearchTimeout(-1);
     NoGuidance abstraction(problem);
@@ -51,7 +51,7 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     break;
   }
   case 1: {
-    // foreach
+    log(2) << "running schedule " << schedule << " foreach";
     solver.setAbstractionTimeout(-1);
     solver.setSearchTimeout(0);
     Foreach abstraction(problem);
@@ -62,7 +62,7 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     break;
   }
   case 2: {
-    // pure cegar foreach
+    log(2) << "running schedule " << schedule << " pure cegar foreach";
     solver.setAbstractionTimeout(-1);
     solver.setSearchTimeout(0);
     CegarForeach abstraction(problem);
@@ -74,7 +74,7 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     break;
   }
   case 3: {
-    // cegar foreach
+    log(2) << "running schedule " << schedule << " cegar foreach";
     solver.setAbstractionTimeout(-1);
     solver.setSearchTimeout(0.01);
     CegarForeach abstraction(problem);
@@ -86,7 +86,7 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     break;
   }
   case 4: {
-    // greedy best first search
+    log(2) << "running schedule " << schedule << " greedy best first search";
     solver.setAbstractionTimeout(0);
     solver.setSearchTimeout(-1);
     NoGuidance abstraction(problem);
