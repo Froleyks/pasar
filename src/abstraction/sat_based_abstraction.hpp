@@ -9,8 +9,23 @@ protected:
   double makespanIncrease     = 1.2;
   double timeLimitPerMakespan = std::numeric_limits<double>::infinity();
 
-  void addMutexes(Formula &f,
-                  const std::vector<std::pair<action_t, action_t>> &mutexes) {
+  action_t firstActionToAdd = 0;
+
+  inline void setInitialMakespan(unsigned initialMakespan) {
+    this->initialMakespan = initialMakespan;
+  }
+
+  inline void setMakespanIncrease(double makespanIncrease) {
+    this->makespanIncrease = makespanIncrease;
+  }
+
+  inline void setTimeLimitPerMakespan(double timeLimitPerMakespan) {
+    this->timeLimitPerMakespan = timeLimitPerMakespan;
+  }
+
+  inline void
+  addMutexes(Formula &f,
+             const std::vector<std::pair<action_t, action_t>> &mutexes) {
     for (auto [a1, a2] : mutexes) {
       // -a1 v -a2
       f.addA(a1, false);
@@ -20,8 +35,8 @@ protected:
     log(3) << "added " << mutexes.size() << " no interference clauses";
   }
 
-  void extractStepSequence(std::vector<AbstractPlan::Step> &stepSequence,
-                           Formula &f) {
+  inline void
+  extractStepSequence(std::vector<AbstractPlan::Step> &stepSequence) {
     stepSequence.resize(f.action.size() - 1);
     for (size_t t = 0; t < f.action.size() - 1; ++t) {
       for (action_t a = 0; a < f.action[t].size(); ++a) {
@@ -32,26 +47,7 @@ protected:
     }
   }
 
-public:
-  static const bool isSatBased = true;
-  Formula f;
-
-  SatBasedAbstraction(Problem &problem)
-      : BaseAbstraction(problem), f(problem) {}
-
-  void setInitialMakespan(unsigned initialMakespan) {
-    this->initialMakespan = initialMakespan;
-  }
-
-  void setMakespanIncrease(double makespanIncrease) {
-    this->makespanIncrease = makespanIncrease;
-  }
-
-  void setTimeLimitPerMakespan(double timeLimitPerMakespan) {
-    this->timeLimitPerMakespan = timeLimitPerMakespan;
-  }
-
-  // SAT clauses
+  /// SAT clauses
   inline void atMostOneValue() {
     // only for finite domain variables
     for (variable_t variable = 0; variable < problem.numValues.size();
@@ -121,8 +117,35 @@ public:
     }
   }
 
-  inline void preconditions() {
-    for (action_t a = 0; a < f.action[0].size(); ++a) {
+  inline void toggleFrame() {
+    for (variable_t variable = 0; variable < f.state[0].size(); ++variable) {
+      for (value_t value = 0; value < f.state[0][variable].size(); ++value) {
+        // p_t+1 => p_t v s in supp(p): s_t v T_0
+        f.addS(variable, value, false, true);
+        f.addS(variable, value, true);
+        for (auto a : valueSupport[variable][value]) {
+          f.addA(a);
+        }
+        f.addT(variable, value, false);
+        f.close();
+      }
+    }
+  }
+
+  inline void updateFrame(variable_t variable, value_t value) {
+    f.iterateToggle(variable, value);
+    // p_t+1 => p_t v s in supp(p): s_t v T_0
+    f.addS(variable, value, false, true);
+    f.addS(variable, value, true);
+    for (auto a : valueSupport[variable][value]) {
+      f.addA(a);
+    }
+    f.addT(variable, value, false);
+    f.close();
+  }
+
+  inline void preconditions(size_t firstAction = 0) {
+    for (action_t a = firstAction; a < f.action[0].size(); ++a) {
       // a_t => pre(a)_t
       for (auto [variable, value] : problem.pre[a]) {
         f.addA(a, false);
@@ -132,8 +155,8 @@ public:
     }
   }
 
-  inline void effects() {
-    for (action_t a = 0; a < f.action[0].size(); ++a) {
+  inline void effects(size_t firstAction = 0) {
+    for (action_t a = firstAction; a < f.action[0].size(); ++a) {
       // a_t => eff(a)_t+1
       for (auto [variable, value] : problem.eff[a]) {
         f.addA(a, false);
@@ -153,4 +176,11 @@ public:
       }
     }
   }
+
+public:
+  static const bool isSatBased = true;
+  Formula f;
+
+  SatBasedAbstraction(Problem &problem, bool togglable = false)
+      : BaseAbstraction(problem), f(problem, togglable) {}
 };

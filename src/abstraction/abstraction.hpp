@@ -3,6 +3,7 @@
 #include "formular.hpp"
 #include "src/problem/abstract_plan.hpp"
 #include "src/problem/problem.hpp"
+
 #include <unordered_set>
 
 class BaseAbstraction {
@@ -23,6 +24,17 @@ protected:
     }
     for (size_t a = 0; a < problem.eff.size(); ++a) {
       for (auto [variable, value] : problem.eff[a]) {
+        valueSupport[variable][value].push_back(a);
+      }
+    }
+  }
+
+  inline void updateValueSupport(
+      action_t firstAciton,
+      std::vector<std::pair<variable_t, value_t>> &updatedSupports) {
+    for (size_t a = firstAciton; a < problem.eff.size(); ++a) {
+      for (auto [variable, value] : problem.eff[a]) {
+        updatedSupports.emplace_back(variable, value);
         valueSupport[variable][value].push_back(a);
       }
     }
@@ -76,7 +88,6 @@ protected:
       }
     }
   }
-
 
 public:
   BaseAbstraction(Problem &problem) : problem(problem) {}

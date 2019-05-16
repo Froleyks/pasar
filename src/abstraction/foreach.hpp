@@ -42,7 +42,7 @@ public:
     }
     if (solved) {
       log(4) << "solved in makespan " << makespan;
-      extractStepSequence(steps, f);
+      extractStepSequence(steps);
     } else {
       log(4) << "failed in makespan " << makespan;
     }

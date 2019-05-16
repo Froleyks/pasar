@@ -142,6 +142,7 @@ int main(int argc, char *argv[]) {
   bool valid = validatePlan<false>(plan, problem);
   if (!valid) {
     log(1) << "Invalid";
+    return 1;
   } else {
     log(1) << "Valid plan of length " << plan.size();
   }
@@ -150,4 +151,5 @@ int main(int argc, char *argv[]) {
   if (!outputFile.empty()) {
     outputPlan(outputFile, problemFile, plan);
   }
+  return 0;
 }

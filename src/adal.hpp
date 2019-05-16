@@ -139,15 +139,11 @@ private:
           abstraction.fixStep(abstractPlan.states[s], abstractPlan.steps[s],
                               abstractPlan.states[s + 1], planForStep);
       if (fixed) {
-        log(5) << "fixed step " << s;
+        log(5) << "step " << s << " fixed";
         stepFixed[s] = true;
-        if (planForStep.size() < 2) {
-          // one or no action
-          plan[s] = planForStep[0];
-        } else {
-          plan[s] = addActionToProblem(problem, planForStep);
-        }
+        plan[s]      = addActionToProblem(problem, planForStep);
       } else {
+        log(5) << "step " << s << " failed";
         fixedPlan = false;
       }
     }
@@ -202,6 +198,7 @@ public:
 
     std::vector<State> guideStates;
     if (!solvedAbstraction) {
+      log(4) << "faild abstraction ";
       guideStates = {problem.goalState};
       return search.search(guideStates, plan, searchTimeout);
     }
@@ -246,6 +243,8 @@ public:
     // used to find the last visited guide state
     std::vector<size_t> originalIndex;
     if (contraction) {
+      log(4) << "contraction on plan length " << abstractPlan.steps.size();
+
       abstractPlanContraction(stepFixed, plan, abstractPlan, guideStates,
                               originalIndex);
     } else {
@@ -263,6 +262,8 @@ public:
       }
     }
 
+    log(4) << "search failed";
+
     // refine abstraction
     size_t firstUnsolved = search.firstGuideState;
     if (contraction) {
@@ -270,6 +271,7 @@ public:
     }
     for (int s = firstUnsolved; s < stepFixed.size(); ++s) {
       if (!stepFixed[s]) {
+        log(4) << "refine step " << s;
         abstraction.refine(abstractPlan.steps[s]);
       }
     }

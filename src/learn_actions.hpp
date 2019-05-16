@@ -35,6 +35,10 @@ inline void contractPlan(Problem &problem, const std::vector<action_t> &plan,
 inline action_t addActionToProblem(Problem &problem,
                                    const std::vector<action_t> &plan,
                                    size_t first, size_t last) {
+  if (last == first) {
+    // only one action in plan
+    return plan[last];
+  }
   problem.numActions++;
   problem.pre.emplace_back();
   problem.eff.emplace_back();

@@ -14,7 +14,7 @@ class Formula {
 private:
   bool withSolver;
   void *solver;
-  int numBaseVariables     = 0;
+  int numVariables         = 0;
   size_t new_clauses_begin = 0;
   int currentStep          = -1;
   // makestep x variable x value
@@ -24,13 +24,14 @@ private:
     bool isEnd;
     bool polarity;
     bool isState;
+    bool isToggle;
     size_t t;
     action_t i;
     value_t v;
     Variable(bool isEnd = true, bool polarity = false, bool isState = false,
-             size_t t = 0, action_t i = 0, value_t v = 0)
-        : isEnd(isEnd), polarity(polarity), isState(isState), t(t), i(i), v(v) {
-    }
+             size_t t = 0, action_t i = 0, value_t v = 0, bool isToggle = false)
+        : isEnd(isEnd), polarity(polarity), isState(isState), t(t), i(i), v(v),
+          isToggle(isToggle) {}
   };
 
   std::vector<Variable> clauses;
@@ -40,15 +41,31 @@ private:
     for (auto [variable, value] : assumptions) {
       ipasir_assume(solver, state.back()[variable][value]);
     }
+    // activate toggles
+    for (size_t variable = 0; variable < toggle.size(); ++variable) {
+      for (size_t value = 0; value < toggle[variable].size(); ++value) {
+        // assume false for all except last
+        for (size_t i = 0; i < toggle[variable][value].size() - 1; ++i) {
+          ipasir_assume(solver, -toggle[variable][value][i]);
+        }
+        // assume true for last
+        ipasir_assume(solver, toggle[variable][value].back());
+      }
+    }
   }
 
-  void add(Variable &v) {
+  inline void add(Variable &v) {
     int lit = 0;
     if (!v.isEnd) {
       if (v.isState) {
         lit = state[v.t][v.i][v.v];
       } else {
-        lit = action[v.t][v.i];
+
+        if (v.isToggle) {
+          lit = toggle[v.i][v.v][v.t];
+        } else {
+          lit = action[v.t][v.i];
+        }
       }
       if (!v.polarity) {
         lit = -lit;
@@ -59,9 +76,16 @@ private:
 
   void addClausesForNewStep() {
     for (size_t i = 0; i < clauses.size(); ++i) {
-      clauses[i].t++;
-
-      add(clauses[i]);
+      if (clauses[i].isToggle) {
+        const size_t iteration = toggle[clauses[i].i][clauses[i].v].size() - 1;
+        if (clauses[i].t == iteration) {
+          // is current
+          add(clauses[i]);
+        }
+      } else {
+        clauses[i].t++;
+        add(clauses[i]);
+      }
     }
   }
 
@@ -77,18 +101,24 @@ private:
     assert(new_clauses.back().isEnd);
     for (int step = 0; step < currentStep + 1; ++step) {
       for (unsigned i = 0; i < new_clauses.size(); ++i) {
-        // std::cout << new_clauses[i] << std::endl;
         add(new_clauses[i]);
-        new_clauses[i].t--;
+        if (!new_clauses[i].isToggle) {
+          new_clauses[i].t--;
+        }
       }
     }
   }
 
 public:
+  // time x variable x value
   std::vector<std::vector<std::vector<int>>> state;
+  // time x action
   std::vector<std::vector<int>> action;
+  // variable x value x iteration
+  std::vector<std::vector<std::vector<int>>> toggle;
 
-  Formula(const Problem &problem, bool withSolver = true,
+  Formula(const Problem &problem, bool togglable = false,
+          bool withSolver                                = true,
           const std::vector<Variable> &additionalClauses = {})
       : withSolver(withSolver) {
     if (withSolver) {
@@ -106,20 +136,30 @@ public:
     for (size_t i = 0; i < problem.numValues.size(); ++i) {
       state[0][i].resize(problem.numValues[i]);
       for (int v = 0; v < problem.numValues[i]; ++v) {
-        state[0][i][v] = ++numBaseVariables;
+        state[0][i][v] = ++numVariables;
       }
     }
     // prepostions
     for (size_t i = problem.numValues.size(); i < problem.numVariables; ++i) {
       // no dual-rail encoding for binary values
-      ++numBaseVariables;
-      state[0][i] = {numBaseVariables, -numBaseVariables};
+      ++numVariables;
+      state[0][i] = {numVariables, -numVariables};
     }
 
     // set action variables
     action.emplace_back(problem.numActions);
     for (size_t i = 0; i < action[0].size(); ++i) {
-      action[0][i] = ++numBaseVariables;
+      action[0][i] = ++numVariables;
+    }
+
+    if (togglable) {
+      toggle.resize(state[0].size());
+      for (variable_t variable = 0; variable < state[0].size(); ++variable) {
+        toggle[variable].resize(state[0][variable].size());
+        for (value_t value = 0; value < state[0][variable].size(); ++value) {
+          toggle[variable][value] = {++numVariables};
+        }
+      }
     }
 
     // TODO the last set of action vars is not needed
@@ -157,26 +197,47 @@ public:
     }
   }
 
+  // add sat variables for new actions for all steps
+  inline void addVarsForActions(size_t numNewActions) {
+    // assert(newVariable == action.back().back());
+    // add for current step
+    action.back().reserve(action.back().size() + numNewActions);
+    for (int a = 0; a < numNewActions; ++a) {
+      action.back().push_back(++numVariables);
+    }
+
+    // add for all previous steps
+    for (int step = 0; step < action.size() - 1; ++step) {
+      action[step].reserve(action[step].size() + numNewActions);
+      for (int a = 0; a < numNewActions; ++a) {
+        action[step].push_back(++numVariables);
+      }
+    }
+  }
+
   unsigned getMakespan() { return currentStep + 1; }
 
   unsigned increaseMakespan(unsigned steps = 1) {
-    for (unsigned i = 0; i < steps; ++i) {
+    for (unsigned s = 0; s < steps; ++s) {
       // set state variables
+      // copy everything
       state.push_back(state.back());
-      for (size_t i = 0; i < state.back().size(); ++i) {
-        for (size_t v = 0; v < state.back()[i].size(); ++v) {
-          if (state.back()[i][v] > 0) {
-            state.back()[i][v] += numBaseVariables;
+      for (int variable = 0; variable < state.back().size(); ++variable) {
+        for (int value = 0; value < state.back()[variable].size(); ++value) {
+          if (state.back()[variable][value] > 0) {
+            state.back()[variable][value] = ++numVariables;
           } else {
-            state.back()[i][v] -= numBaseVariables;
+            // preposition optimisation
+            assert(state.back()[variable].size() == 2 && value == 1);
+            state.back()[variable][value] = -state.back()[variable][value - 1];
           }
         }
       }
 
       // set action variables
-      action.push_back(action.back());
+      action.emplace_back(action.back().size());
       for (size_t i = 0; i < action.back().size(); ++i) {
-        action.back()[i] += numBaseVariables;
+        action.back()[i] = ++numVariables;
       }
 
       addClausesForNewStep();
@@ -194,12 +255,13 @@ public:
 
   inline void addInitialStateAtom(int variable, unsigned value,
                                   bool polarity = true) {
-    // std::cout << (polarity ? 1 : -1) * state[0][variable][value] <<
-    // std::endl; std::cout << "0" << std::endl;
-
     ipasir_add(solver, (polarity ? 1 : -1) * state[0][variable][value]);
-
     ipasir_add(solver, 0);
+  }
+
+  // adds new toggle, old will be disabled
+  inline void iterateToggle(variable_t variable, value_t value) {
+    toggle[variable][value].push_back(++numVariables);
   }
 
   // clauses added will be added to all past and future steps
@@ -207,26 +269,26 @@ public:
                    bool next = false) {
 
     if (next) {
-      // clauses.push_back((polarity ? 1 : -1) *
-      //                   state[currentStep + 1][variable][value]);
       clauses.emplace_back(false, polarity, true, currentStep + 1, variable,
                            value);
     } else {
-      // clauses.push_back((polarity ? 1 : -1) *
-      //                   state[currentStep][variable][value]);
       clauses.emplace_back(false, polarity, true, currentStep, variable, value);
     }
   }
 
   inline void addA(int index, bool polarity = true, bool next = false) {
     if (next) {
-      // clauses.push_back((polarity ? 1 : -1) * action[currentStep +
-      // 1][index]);
       clauses.emplace_back(false, polarity, false, currentStep + 1, index);
     } else {
-      // clauses.push_back((polarity ? 1 : -1) * action[currentStep][index]);
       clauses.emplace_back(false, polarity, false, currentStep, index);
     }
+  }
+
+  // toggles are independent of the time step
+  inline void addT(int variable, unsigned value, bool polarity = true) {
+    const size_t iteration = toggle[variable][value].size() - 1;
+    clauses.emplace_back(false, polarity, false, iteration, variable, value,
+                         true);
   }
 
   inline void close() { clauses.emplace_back(); }
@@ -241,11 +303,6 @@ public:
       return (int)(Logger::getTime() > *(double *)(endTime));
     });
     int satRes = ipasir_solve(solver);
-    for (int i = 0; i < action.back().back(); ++i) {
-      if (ipasir_val(solver, i) > 0) {
-        // std::cout << ipasir_val(solver, i) << " ";
-      }
-    }
     return satRes == 10;
   }
 

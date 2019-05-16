@@ -1,4 +1,6 @@
 #pragma once
+
+#include <functional>
 #include <unordered_map>
 
 #include "src/abstraction/sat_based_abstraction.hpp"
@@ -114,21 +116,47 @@ private:
     return true;
   }
 
+  inline void addNewActions() {
+    f.addVarsForActions(problem.numActions - firstActionToAdd);
+
+    std::vector<std::pair<variable_t, value_t>> updatedSupports;
+    updateValueSupport(firstActionToAdd, updatedSupports);
+
+    // remove duplicates
+    std::sort(updatedSupports.begin(), updatedSupports.end());
+    updatedSupports.erase(
+        std::unique(updatedSupports.begin(), updatedSupports.end()),
+        updatedSupports.end());
+
+    preconditions(firstActionToAdd);
+    effects(firstActionToAdd);
+
+    for (auto [variable, value] : updatedSupports) {
+      updateFrame(variable, value);
+    }
+    firstActionToAdd = problem.numActions;
+  }
+
 public:
-  CegarForeach(Problem &problem) : SatBasedAbstraction(problem) {
+  CegarForeach(Problem &problem) : SatBasedAbstraction(problem, true) {
     computeValueSupport();
     atMostOneValue();
     initial();
     assumeGoal();
     preconditions();
-    frame();
+    toggleFrame();
     effects();
+
+    firstActionToAdd = problem.numActions;
   }
 
   inline bool
   solve(std::vector<AbstractPlan::Step> &steps,
         double timeLimit = std::numeric_limits<double>::infinity()) {
-    double endTime    = Logger::getTime() + timeLimit;
+    log(4) << "start solving abstraction";
+
+    double endTime = Logger::getTime() + timeLimit;
+    addNewActions();
     unsigned makespan = f.getMakespan();
     if (makespan == 1 && initialMakespan > 1) {
       makespan = f.increaseMakespan(initialMakespan - 1);
@@ -141,14 +169,16 @@ public:
     while (!solved) {
       int increase =
           std::max((int)(makespan * (makespanIncrease - 1) + 0.1), 1);
-      makespan  = f.increaseMakespan(increase);
+
+      makespan = f.increaseMakespan(increase);
+
       timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan);
       log(5) << "start solving makespan " << makespan;
       solved = f.solve(timeLimit);
     }
     if (solved) {
       log(4) << "solved abstraction in makespan " << makespan;
-      extractStepSequence(steps, f);
+      extractStepSequence(steps);
     } else {
       log(4) << "failed in makespan " << makespan;
     }
@@ -172,7 +202,8 @@ public:
     std::vector<std::pair<action_t, action_t>> edgeList;
     getInterferenceGraph(actions, edgeList);
     if (edgeList.empty()) {
-      log(6) << "fixed step, no interferance " << actions.size();
+      log(6) << "fixed step, no interferance on " << actions.size()
+             << " actions";
       planForStep = actions;
       return true;
     }
