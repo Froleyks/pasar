@@ -20,7 +20,20 @@ private:
   // makestep x variable x value
   size_t initialClausesIndex = 0;
 
-  std::vector<int> clauses;
+  struct Variable {
+    bool isEnd;
+    bool polarity;
+    bool isState;
+    size_t t;
+    action_t i;
+    value_t v;
+    Variable(bool isEnd = true, bool polarity = false, bool isState = false,
+             size_t t = 0, action_t i = 0, value_t v = 0)
+        : isEnd(isEnd), polarity(polarity), isState(isState), t(t), i(i), v(v) {
+    }
+  };
+
+  std::vector<Variable> clauses;
   Assignment assumptions;
 
   void activateAssumptions() {
@@ -29,15 +42,26 @@ private:
     }
   }
 
+  void add(Variable &v) {
+    int lit = 0;
+    if (!v.isEnd) {
+      if (v.isState) {
+        lit = state[v.t][v.i][v.v];
+      } else {
+        lit = action[v.t][v.i];
+      }
+      if (!v.polarity) {
+        lit = -lit;
+      }
+    }
+    ipasir_add(solver, lit);
+  }
+
   void addClausesForNewStep() {
     for (size_t i = 0; i < clauses.size(); ++i) {
-      if (clauses[i] > 0) {
-        clauses[i] += numBaseVariables;
-      } else if (clauses[i] < 0) {
-        clauses[i] -= numBaseVariables;
-      }
-      // 0 -> 0
-      ipasir_add(solver, clauses[i]);
+      clauses[i].t++;
+
+      add(clauses[i]);
     }
   }
 
@@ -47,19 +71,15 @@ private:
     if (new_clauses_begin == clauses.size()) {
       return;
     }
-    std::vector<int> new_clauses(clauses.begin() + new_clauses_begin,
-                                 clauses.end());
+    std::vector<Variable> new_clauses(clauses.begin() + new_clauses_begin,
+                                      clauses.end());
     new_clauses_begin = clauses.size();
-    assert(new_clauses.back() == 0);
+    assert(new_clauses.back().isEnd);
     for (int step = 0; step < currentStep + 1; ++step) {
       for (unsigned i = 0; i < new_clauses.size(); ++i) {
-        ipasir_add(solver, new_clauses[i]);
-        if (new_clauses[i] > 0) {
-          new_clauses[i] -= numBaseVariables;
-        } else if (new_clauses[i] < 0) {
-          new_clauses[i] += numBaseVariables;
-        }
-        // 0 -> 0
+        // std::cout << new_clauses[i] << std::endl;
+        add(new_clauses[i]);
+        new_clauses[i].t--;
       }
     }
   }
@@ -69,7 +89,7 @@ public:
   std::vector<std::vector<int>> action;
 
   Formula(const Problem &problem, bool withSolver = true,
-          const std::vector<int> &additionalClauses = {})
+          const std::vector<Variable> &additionalClauses = {})
       : withSolver(withSolver) {
     if (withSolver) {
       solver = ipasir_init();
@@ -174,31 +194,42 @@ public:
 
   inline void addInitialStateAtom(int variable, unsigned value,
                                   bool polarity = true) {
+    // std::cout << (polarity ? 1 : -1) * state[0][variable][value] <<
+    // std::endl; std::cout << "0" << std::endl;
+
     ipasir_add(solver, (polarity ? 1 : -1) * state[0][variable][value]);
+
     ipasir_add(solver, 0);
   }
 
   // clauses added will be added to all past and future steps
   inline void addS(int variable, unsigned value, bool polarity = true,
                    bool next = false) {
+
     if (next) {
-      clauses.push_back((polarity ? 1 : -1) *
-                        state[currentStep + 1][variable][value]);
+      // clauses.push_back((polarity ? 1 : -1) *
+      //                   state[currentStep + 1][variable][value]);
+      clauses.emplace_back(false, polarity, true, currentStep + 1, variable,
+                           value);
     } else {
-      clauses.push_back((polarity ? 1 : -1) *
-                        state[currentStep][variable][value]);
+      // clauses.push_back((polarity ? 1 : -1) *
+      //                   state[currentStep][variable][value]);
+      clauses.emplace_back(false, polarity, true, currentStep, variable, value);
     }
   }
 
   inline void addA(int index, bool polarity = true, bool next = false) {
     if (next) {
-      clauses.push_back((polarity ? 1 : -1) * action[currentStep + 1][index]);
+      // clauses.push_back((polarity ? 1 : -1) * action[currentStep +
+      // 1][index]);
+      clauses.emplace_back(false, polarity, false, currentStep + 1, index);
     } else {
-      clauses.push_back((polarity ? 1 : -1) * action[currentStep][index]);
+      // clauses.push_back((polarity ? 1 : -1) * action[currentStep][index]);
+      clauses.emplace_back(false, polarity, false, currentStep, index);
     }
   }
 
-  inline void close() { clauses.push_back(0); }
+  inline void close() { clauses.emplace_back(); }
 
   // assume goal and try to solve
   bool solve(double timeLimit = std::numeric_limits<double>::infinity()) {
@@ -210,6 +241,11 @@ public:
       return (int)(Logger::getTime() > *(double *)(endTime));
     });
     int satRes = ipasir_solve(solver);
+    for (int i = 0; i < action.back().back(); ++i) {
+      if (ipasir_val(solver, i) > 0) {
+        // std::cout << ipasir_val(solver, i) << " ";
+      }
+    }
     return satRes == 10;
   }
 
@@ -237,7 +273,8 @@ public:
     return ipasir_val(solver, action[t][index]) > 0;
   }
 
-  void getClauses(std::vector<int> &c) {
-    c = std::vector<int>(clauses.begin() + initialClausesIndex, clauses.end());
+  void getClauses(std::vector<Variable> &c) {
+    c = std::vector<Variable>(clauses.begin() + initialClausesIndex,
+                              clauses.end());
   }
 };
