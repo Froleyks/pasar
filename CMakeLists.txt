@@ -3,38 +3,7 @@ set(CMAKE_BUILD_TYPE Debug)
 include_directories(.)
 
 set (RUN_PARAMS
-  # assertion error
   -v 7 -s 3 /home/froleyks/Dropbox/mt/domains_agile/Tetris/p022.pddl.sas
-  )
-
-add_compile_options(
-  -Wall
-  -Wextra # reasonable and standard
-  # -Wshadow # warn the user if a variable declaration shadows one from a
-  # parent context
-  -Wnon-virtual-dtor # warn the user if a class with virtual functions has a
-  # non-virtual destructor. This helps catch hard to
-  # track down memory errors
-  # -Wold-style-cast # warn for c-style casts
-  -Wcast-align # warn for potential performance problem casts
-  -Wunused # warn on anything being unused
-  -Woverloaded-virtual # warn if you overload (not override) a virtual
-  # function
-  -Wpedantic # warn if non-standard C++ is used
-  -Wconversion # warn on type conversions that may lose data
-  -Wsign-conversion # warn on sign conversions
-  -Wmisleading-indentation # warn if identation implies blocks where blocks
-  # do not exist
-  -Wduplicated-cond # warn if if / else chain has duplicated conditions
-  -Wduplicated-branches # warn if if / else branches have duplicated code
-  -Wlogical-op # warn about logical operations being used where bitwise were
-  # probably wanted
-  -Wnull-dereference # warn if a null dereference is detected
-  -Wuseless-cast # warn if you perform a cast to the same type
-  -Wdouble-promotion # warn if float is implicit promoted to double
-  -Wformat=2 # warn on security issues around functions that format output
-  # -Weffc++
-  -Wunreachable-code
   )
 
 set (SOURCE_FILES
@@ -43,7 +12,34 @@ set (SOURCE_FILES
   src/search/depth_first_search.cpp
   )
 
-set (CMAKE_CXX_FLAGS "-std=c++17 -msse4.2 -g -O3 -march=native")
+set (WARNINGS
+  -Wall
+  -Wextra
+  -Wshadow
+  -Wnon-virtual-dtor
+  -Wold-style-cast
+  -Wcast-align
+  -Wunused
+  -Woverloaded-virtual
+  -Wpedantic
+  -Wconversion
+  -Wsign-conversion
+  -Wmisleading-indentation
+  -Wduplicated-cond
+  -Wduplicated-branches
+  -Wlogical-op
+  -Wnull-dereference
+  -Wuseless-cast
+  -Wdouble-promotion
+  -Wformat=2
+  -Weffc++
+  -Wunreachable-code
+  )
+
+string (REPLACE ";" " " WARNINGS_STR "${WARNINGS}")
+set(CMAKE_CXX_FLAGS "-std=c++17 -msse4.2 -g -O3 -march=native ${WARNINGS_STR}")
+
+message(${CMAKE_CXX_FLAGS})
 
 add_custom_command(OUTPUT problem.plan
   COMMAND ./ADAL_glucose ${RUN_PARAMS} -planfile problem.plan
