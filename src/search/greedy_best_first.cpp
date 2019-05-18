@@ -17,8 +17,7 @@ inline void GreedyBestFirst::updateGuideState(
   if (guideStates.size() < 2) {
     return;
   }
-  for (size_t s = guideStates.size() - 2;
-       s != firstGuideState - 1; --s) {
+  for (size_t s = firstGuideState; s < guideStates.size() - 1; ++s) {
     if (!reachedGuideHint[s]) {
       continue;
     }
@@ -61,7 +60,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
   getApplicableActions(state, guideStates, appActions);
 
   // encountered guideState <first> at plan index <second>
-  std::vector<std::pair<size_t, size_t>> milestones;
+  std::vector<std::pair<size_t, size_t>> milestones{{-1, 0}};
   milestones.reserve(guideStates.size());
 
   size_t checkTime = 0;
