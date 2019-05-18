@@ -13,24 +13,25 @@ private:
 protected:
   // sort actions by gain
   struct WeightedAction {
-    int gain;
-    int action;
-    WeightedAction(int gain, int action) : gain(gain), action(action) {}
+    // TODO this should be a float
+    int gain_;
+    action_t action_;
+    WeightedAction(int gain, action_t action) : gain_(gain), action_(action) {}
   };
 
   struct CompWeightedActions {
     bool operator()(const WeightedAction &a, const WeightedAction &b) const {
       // they are equivalent if !comp(a,b) && !comp(b,a)
-      if (a.action == b.action) {
+      if (a.action_ == b.action_) {
         return false;
       }
-      return a.gain >= b.gain;
+      return a.gain_ >= b.gain_;
     }
   };
 
   using WeightedActionSet = std::set<WeightedAction, CompWeightedActions>;
 
-  Problem &problem;
+  Problem &problem_;
 
   // used for random tie-breaking
   static constexpr int noiseRange = 10;
@@ -68,7 +69,7 @@ protected:
     double gain  = 0;
     double decay = 1;
     // start from actual goal
-    for (int s = guideStates.size() - 1; s >= (int)firstGuideState; --s) {
+    for (size_t s = guideStates.size() - 1; s != firstGuideState - 1; --s) {
       bool mightReacheGuide = true;
       // compute change in hamming distance
       int stepGain = 0;
@@ -88,14 +89,14 @@ protected:
         }
       }
       mightReacheGuide = mightReacheGuide && stepGain;
-      reachedGuideHint[s] |= mightReacheGuide;
+      reachedGuideHint[s] |= static_cast<char>(mightReacheGuide);
       gain += stepGain * decay;
       decay *= gainDecayFactor;
     }
 
     // random tie-breaking
     gain *= noiseRange;
-    const double noise = ((double)rand() * noiseRange) / RAND_MAX;
+    const double noise = (static_cast<double>(rand()) * noiseRange) / RAND_MAX;
     gain += noise;
 
     return gain;
@@ -106,7 +107,7 @@ protected:
     double gain  = 0;
     double decay = 1;
     // start from actual goal
-    for (int s = guideStates.size() - 1; s > -1; --s) {
+    for (size_t s = guideStates.size() - 1; s != static_cast<size_t>(-1); --s) {
       // compute change in hamming distance
       int stepGain = 0;
       for (auto [variable, value] : a) {
@@ -130,43 +131,44 @@ protected:
 
     // random tie-breaking
     gain *= noiseRange;
-    const double noise = ((double)rand() * noiseRange) / RAND_MAX;
+    const double noise = (static_cast<double>(rand()) * noiseRange) / RAND_MAX;
     gain += noise;
 
     return gain;
   }
 
   inline void computeActionSupport() {
-    actionSupport.resize(problem.numVariables);
-    for (int v = 0; v < problem.numValues.size(); ++v) {
-      actionSupport[v].resize(problem.numValues[v]);
+    actionSupport.resize(problem_.numVariables);
+    for (size_t v = 0; v < problem_.numValues.size(); ++v) {
+      actionSupport[v].resize(problem_.numValues[v]);
     }
-    for (int v = problem.numValues.size(); v < problem.numVariables; ++v) {
+    for (size_t v = problem_.numValues.size(); v < problem_.numVariables; ++v) {
       actionSupport[v].resize(2);
     }
-    for (size_t a = 0; a < problem.pre.size(); ++a) {
-      for (auto [variable, value] : problem.pre[a]) {
-        actionSupport[variable][value].push_back(a);
+    for (size_t a = 0; a < problem_.pre.size(); ++a) {
+      for (auto [variable, value] : problem_.pre[a]) {
+        actionSupport[variable][value].push_back(static_cast<action_t>(a));
       }
     }
-    firstNewAction = problem.numActions;
+    firstNewAction = static_cast<action_t>(problem_.numActions);
   }
 
   inline void updateActionSupport() {
-    for (size_t a = firstNewAction; a < problem.pre.size(); ++a) {
-      for (auto [variable, value] : problem.pre[a]) {
-        actionSupport[variable][value].push_back(a);
+    for (size_t a = firstNewAction; a < problem_.pre.size(); ++a) {
+      for (auto [variable, value] : problem_.pre[a]) {
+        actionSupport[variable][value].push_back(static_cast<action_t>(a));
       }
     }
-    firstNewAction = problem.numActions;
+    firstNewAction = static_cast<action_t>(problem_.numActions);
   }
 
+  // used only once
   inline void getApplicableActions(const State &state,
                                    std::vector<action_t> &appActions) {
     appActions.clear();
-    for (size_t a = 0; a < problem.pre.size(); ++a) {
-      if (assignmentHolds(problem.pre[a], state)) {
-        appActions.push_back(a);
+    for (size_t a = 0; a < problem_.pre.size(); ++a) {
+      if (assignmentHolds(problem_.pre[a], state)) {
+        appActions.push_back(static_cast<action_t>(a));
       }
     }
   }
@@ -175,9 +177,9 @@ protected:
                                    std::vector<State> &guideStates,
                                    WeightedActionSet &appActions) {
     appActions.clear();
-    for (action_t a = 0; a < problem.numActions; ++a) {
-      if (assignmentHolds(problem.pre[a], state)) {
-        appActions.emplace(gainOfAssignment(problem.eff[a], state, guideStates),
+    for (action_t a = 0; a < problem_.numActions; ++a) {
+      if (assignmentHolds(problem_.pre[a], state)) {
+        appActions.emplace(gainOfAssignment(problem_.eff[a], state, guideStates),
                            a);
       }
     }
@@ -190,7 +192,7 @@ protected:
     std::vector<action_t> oldAppActions = std::move(appActions);
     appActions.clear();
     for (auto action : oldAppActions) {
-      if (assignmentHolds(problem.pre[action], state)) {
+      if (assignmentHolds(problem_.pre[action], state)) {
         appActions.emplace_back(action);
       }
     }
@@ -199,7 +201,7 @@ protected:
     for (auto [variable, value] : newValues) {
       // all actions which have variable == value as a precondition
       for (auto a : actionSupport[variable][value]) {
-        if (assignmentHolds(problem.pre[a], state)) {
+        if (assignmentHolds(problem_.pre[a], state)) {
           appActions.push_back(a);
         }
       }
@@ -214,9 +216,9 @@ protected:
     WeightedActionSet oldAppActions = std::move(appActions);
     appActions.clear();
     for (auto [gain, action] : oldAppActions) {
-      if (assignmentHolds(problem.pre[action], state)) {
+      if (assignmentHolds(problem_.pre[action], state)) {
         appActions.emplace(
-            gainOfAssignment(problem.eff[action], state, guideStates), action);
+            gainOfAssignment(problem_.eff[action], state, guideStates), action);
       }
     }
 
@@ -224,9 +226,9 @@ protected:
     for (auto [variable, value] : newValues) {
       // all actions which have variable == value as a precondition
       for (auto a : actionSupport[variable][value]) {
-        if (assignmentHolds(problem.pre[a], state)) {
+        if (assignmentHolds(problem_.pre[a], state)) {
           appActions.emplace(
-              gainOfAssignment(problem.eff[a], state, guideStates), a);
+              gainOfAssignment(problem_.eff[a], state, guideStates), a);
         }
       }
     }
@@ -243,8 +245,8 @@ protected:
     WeightedActionSet oldAppActions = std::move(appActions);
     appActions.clear();
     for (auto [gain, action] : oldAppActions) {
-      if (assignmentHolds(problem.pre[action], state)) {
-        appActions.emplace(gainOfAssignment(problem.eff[action], state,
+      if (assignmentHolds(problem_.pre[action], state)) {
+        appActions.emplace(gainOfAssignment(problem_.eff[action], state,
                                             guideStates, reachedGuideHint),
                            action);
       }
@@ -254,8 +256,8 @@ protected:
     for (auto [variable, value] : newValues) {
       // all actions which have variable == value as a precondition
       for (auto a : actionSupport[variable][value]) {
-        if (assignmentHolds(problem.pre[a], state)) {
-          appActions.emplace(gainOfAssignment(problem.eff[a], state,
+        if (assignmentHolds(problem_.pre[a], state)) {
+          appActions.emplace(gainOfAssignment(problem_.eff[a], state,
                                               guideStates, reachedGuideHint),
                              a);
         }
@@ -264,7 +266,7 @@ protected:
   }
 
 public:
-  BaseSearch(Problem &problem) : problem(problem) {
+  BaseSearch(Problem &problem) : problem_(problem) {
     constexpr unsigned seed = 42;
     srand(seed);
   }

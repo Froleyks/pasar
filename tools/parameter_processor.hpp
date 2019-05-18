@@ -12,22 +12,22 @@ class ParameterProcessor {
 private:
   std::map<std::string, std::string> filenames;
   std::map<std::string, std::string> parameters;
-  std::string lastAddedFilename;
+  std::string lastAddedFilename = "";
 
   struct Default {
-    std::string name;
-    std::string defaultValue;
-    std::string description;
+    std::string name_;
+    std::string defaultValue_;
+    std::string description_;
     Default(std::string name, std::string defaultValue, std::string description)
-        : name(name), defaultValue(defaultValue), description(description) {}
+        : name_(name), defaultValue_(defaultValue), description_(description) {}
   };
 
   std::vector<Default> defaultParameters;
 
 public:
-  ParameterProcessor() {}
+  ParameterProcessor() : filenames(), parameters(), defaultParameters() {}
 
-  ParameterProcessor(int argc, char **argv) { init(argc, argv); }
+  ParameterProcessor(int argc, char **argv) : filenames(), parameters(), defaultParameters() { init(argc, argv); }
 
   void init(int argc, char **argv) {
     for (int i = 1; i < argc; ++i) {
@@ -103,14 +103,14 @@ public:
   }
 
   friend std::ostream &operator<<(std::ostream &stream,
-                                  const ParameterProcessor &parameters) {
+                                  const ParameterProcessor &params) {
     stream << "Filenames:" << std::endl;
-    for (const auto &filename : parameters.filenames) {
+    for (const auto &filename : params.filenames) {
       stream << filename.second << std::endl;
     }
     stream << std::endl;
     stream << "Parameters:" << std::endl;
-    for (const auto &parameter : parameters.parameters) {
+    for (const auto &parameter : params.parameters) {
       stream << parameter.first << " = " << parameter.second << std::endl;
     }
     return stream;

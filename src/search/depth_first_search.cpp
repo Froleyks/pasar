@@ -7,13 +7,13 @@ DepthFirstSearch::DepthFirstSearch(Problem &problem) : BaseSearch(problem) {
   computeActionSupport();
 }
 
-bool DepthFirstSearch::search(std::vector<State> &guideStates,
+bool DepthFirstSearch::search(std::vector<State> &guideStates __attribute__((unused)),
                               std::vector<action_t> &plan, double timeLimit) {
   log(3) << "start forward search";
 
   double endTime = Logger::getTime() + timeLimit;
 
-  State state = problem.initialState;
+  State state = problem_.initialState;
   CompactState compactState(state);
   StateHashSet knownStates{compactState};
 
@@ -24,7 +24,7 @@ bool DepthFirstSearch::search(std::vector<State> &guideStates,
   getApplicableActions(state, appActions);
 
   size_t checkTime = 0;
-  while (!assignmentHolds(problem.goal, state)) {
+  while (!assignmentHolds(problem_.goal, state)) {
     if (checkTime++ % 128 == 0 && Logger::getTime() > endTime) {
       plan.clear();
       return false;
@@ -45,7 +45,7 @@ bool DepthFirstSearch::search(std::vector<State> &guideStates,
       bool appliedAction = false;
       for (auto a : appActions) {
         Assignment oldValues;
-        applyAssignment(problem.eff[a], compactState, oldValues);
+        applyAssignment(problem_.eff[a], compactState, oldValues);
         bool newState = knownStates.insert(compactState).second;
         if (!newState) {
           // state was visited before
@@ -53,8 +53,8 @@ bool DepthFirstSearch::search(std::vector<State> &guideStates,
         } else {
           plan.push_back(a);
           changeHistory.push_back(oldValues);
-          applyAssignment(problem.eff[a], state);
-          updateApplicableActions(state, problem.eff[a], appActions);
+          applyAssignment(problem_.eff[a], state);
+          updateApplicableActions(state, problem_.eff[a], appActions);
           appliedAction = true;
           break;
         }

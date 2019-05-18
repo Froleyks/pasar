@@ -12,11 +12,11 @@ extern "C" {
 // clauses added will be added to all past and future steps
 class Formula {
 private:
-  bool withSolver;
+  bool withSolver_;
   void *solver;
-  int numVariables         = 0;
-  size_t new_clauses_begin = 0;
-  int currentStep          = -1;
+  int numVariables       = 0;
+  size_t newClausesBegin = 0;
+  int currentStep        = -1;
   // makestep x variable x value
   size_t initialClausesIndex = 0;
 
@@ -24,14 +24,15 @@ private:
     bool isEnd;
     bool polarity;
     bool isState;
-    bool isToggle;
     size_t t;
     action_t i;
     value_t v;
-    Variable(bool isEnd = true, bool polarity = false, bool isState = false,
-             size_t t = 0, action_t i = 0, value_t v = 0, bool isToggle = false)
-        : isEnd(isEnd), polarity(polarity), isState(isState), t(t), i(i), v(v),
-          isToggle(isToggle) {}
+    bool isToggle;
+    Variable(bool p_isEnd = true, bool p_polarity = false,
+             bool p_isState = false, size_t p_t = 0, action_t p_i = 0,
+             value_t p_v = 0, bool p_isToggle = false)
+        : isEnd(p_isEnd), polarity(p_polarity), isState(p_isState), t(p_t),
+          i(p_i), v(p_v), isToggle(p_isToggle) {}
   };
 
   std::vector<Variable> clauses;
@@ -92,12 +93,12 @@ private:
   // only new clauses
   // known clauses are added in increase makespan
   void addClausesForAllSteps() {
-    if (new_clauses_begin == clauses.size()) {
+    if (newClausesBegin == clauses.size()) {
       return;
     }
-    std::vector<Variable> new_clauses(clauses.begin() + new_clauses_begin,
-                                      clauses.end());
-    new_clauses_begin = clauses.size();
+    std::vector<Variable> new_clauses(
+        clauses.begin() + static_cast<long>(newClausesBegin), clauses.end());
+    newClausesBegin = clauses.size();
     assert(new_clauses.back().isEnd);
     for (int step = 0; step < currentStep + 1; ++step) {
       for (unsigned i = 0; i < new_clauses.size(); ++i) {
@@ -120,7 +121,7 @@ public:
   Formula(const Problem &problem, bool togglable = false,
           bool withSolver                                = true,
           const std::vector<Variable> &additionalClauses = {})
-      : withSolver(withSolver) {
+      : withSolver_(withSolver) {
     if (withSolver) {
       solver = ipasir_init();
 
@@ -135,7 +136,7 @@ public:
     // all finite domain variables
     for (size_t i = 0; i < problem.numValues.size(); ++i) {
       state[0][i].resize(problem.numValues[i]);
-      for (int v = 0; v < problem.numValues[i]; ++v) {
+      for (size_t v = 0; v < problem.numValues[i]; ++v) {
         state[0][i][v] = ++numVariables;
       }
     }
@@ -167,10 +168,10 @@ public:
 
     // at least one value
     // is not necessary for the fixed initial sate
-    for (size_t i = 0; i < state[0].size(); ++i) {
-      if (state[0][i].size() > 2) {
-        for (size_t v = 0; v < state[0][i].size(); ++v) {
-          addS(i, v, true, true);
+    for (variable_t variable = 0; variable < state[0].size(); ++variable) {
+      if (state[0][variable].size() > 2) {
+        for (value_t value = 0; value < state[0][variable].size(); ++value) {
+          addS(variable, value, true, true);
         }
         close();
       }
@@ -192,38 +193,37 @@ public:
   }
 
   ~Formula() {
-    if (withSolver) {
+    if (withSolver_) {
       ipasir_release(solver);
     }
   }
 
   // add sat variables for new actions for all steps
   inline void addVarsForActions(size_t numNewActions) {
-    // assert(newVariable == action.back().back());
     // add for current step
     action.back().reserve(action.back().size() + numNewActions);
-    for (int a = 0; a < numNewActions; ++a) {
+    for (size_t a = 0; a < numNewActions; ++a) {
       action.back().push_back(++numVariables);
     }
 
     // add for all previous steps
-    for (int step = 0; step < action.size() - 1; ++step) {
+    for (size_t step = 0; step < action.size() - 1; ++step) {
       action[step].reserve(action[step].size() + numNewActions);
-      for (int a = 0; a < numNewActions; ++a) {
+      for (size_t a = 0; a < numNewActions; ++a) {
         action[step].push_back(++numVariables);
       }
     }
   }
 
-  unsigned getMakespan() { return currentStep + 1; }
+  size_t getMakespan() { return static_cast<size_t>(currentStep) + 1; }
 
-  unsigned increaseMakespan(unsigned steps = 1) {
+  size_t increaseMakespan(unsigned steps = 1) {
     for (unsigned s = 0; s < steps; ++s) {
       // set state variables
       // copy everything
       state.push_back(state.back());
-      for (int variable = 0; variable < state.back().size(); ++variable) {
-        for (int value = 0; value < state.back()[variable].size(); ++value) {
+      for (size_t variable = 0; variable < state.back().size(); ++variable) {
+        for (size_t value = 0; value < state.back()[variable].size(); ++value) {
           if (state.back()[variable][value] > 0) {
             state.back()[variable][value] = ++numVariables;
           } else {
@@ -245,7 +245,7 @@ public:
       currentStep++;
     }
 
-    return currentStep + 1;
+    return static_cast<size_t>(currentStep) + 1;
   }
 
   // assuming the goal
@@ -253,7 +253,7 @@ public:
     assumptions.emplace_back(variable, value);
   }
 
-  inline void addInitialStateAtom(int variable, unsigned value,
+  inline void addInitialStateAtom(variable_t variable, value_t value,
                                   bool polarity = true) {
     ipasir_add(solver, (polarity ? 1 : -1) * state[0][variable][value]);
     ipasir_add(solver, 0);
@@ -276,16 +276,16 @@ public:
     }
   }
 
-  inline void addA(int index, bool polarity = true, bool next = false) {
+  inline void addA(action_t a, bool polarity = true, bool next = false) {
     if (next) {
-      clauses.emplace_back(false, polarity, false, currentStep + 1, index);
+      clauses.emplace_back(false, polarity, false, currentStep + 1, a);
     } else {
-      clauses.emplace_back(false, polarity, false, currentStep, index);
+      clauses.emplace_back(false, polarity, false, currentStep, a);
     }
   }
 
   // toggles are independent of the time step
-  inline void addT(int variable, unsigned value, bool polarity = true) {
+  inline void addT(variable_t variable, unsigned value, bool polarity = true) {
     const size_t iteration = toggle[variable][value].size() - 1;
     clauses.emplace_back(false, polarity, false, iteration, variable, value,
                          true);
@@ -299,39 +299,40 @@ public:
     addClausesForAllSteps();
     activateAssumptions();
     double endTime = Logger::getTime() + timeLimit;
-    ipasir_set_terminate(solver, &endTime, [](void *endTime) {
-      return (int)(Logger::getTime() > *(double *)(endTime));
+    ipasir_set_terminate(solver, &endTime, [](void *time) {
+      return static_cast<int>(Logger::getTime() >
+                              *static_cast<double *>(time));
     });
     int satRes = ipasir_solve(solver);
     return satRes == 10;
   }
 
-  int getStateValue(variable_t variable, size_t t) const {
-    for (unsigned i = 0; i < state[t][variable].size(); ++i) {
-      int lit = state[t][variable][i];
+  value_t getStateValue(variable_t variable, size_t t) const {
+    for (value_t value = 0; value < state[t][variable].size(); ++value) {
+      int lit = state[t][variable][value];
       if (lit > 0) {
         // TODO not important values
         if (ipasir_val(solver, lit) >= 0) {
-          return i;
+          return value;
         }
       } else {
         if (ipasir_val(solver, -lit) <= 0) {
-          return i;
+          return value;
         }
       }
     }
     assert(false);
-    return -1;
+    return unassigned;
   }
 
-  bool getActionValue(unsigned index, unsigned t) const {
+  bool getActionValue(action_t a, size_t t) const {
     // not important variables should be false, a minimum of actions is
     // preferred
-    return ipasir_val(solver, action[t][index]) > 0;
+    return ipasir_val(solver, action[t][a]) > 0;
   }
 
   void getClauses(std::vector<Variable> &c) {
-    c = std::vector<Variable>(clauses.begin() + initialClausesIndex,
-                              clauses.end());
+    c = std::vector<Variable>(
+        clauses.begin() + static_cast<long>(newClausesBegin), clauses.end());
   }
 };

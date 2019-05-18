@@ -32,8 +32,8 @@ set (WARNINGS
   -Wuseless-cast
   -Wdouble-promotion
   -Wformat=2
-  -Weffc++
   -Wunreachable-code
+  # -Weffc++
   )
 
 string (REPLACE ";" " " WARNINGS_STR "${WARNINGS}")

@@ -16,27 +16,29 @@ public:
 
     std::vector<std::pair<action_t, action_t>> mutexes;
     getInterferenceGraph(mutexes);
-    addMutexes(f, mutexes);
+    addMutexes(mutexes);
   }
 
   inline bool
   solve(std::vector<AbstractPlan::Step> &steps,
         double timeLimit = std::numeric_limits<double>::infinity()) {
-    double endTime    = Logger::getTime() + timeLimit;
-    unsigned makespan = f.getMakespan();
-    if (makespan == 1 && initialMakespan > 1) {
-      makespan = f.increaseMakespan(initialMakespan - 1);
+    double endTime  = Logger::getTime() + timeLimit;
+    size_t makespan = f.getMakespan();
+    if (makespan == 1 && initialMakespan_ > 1) {
+      makespan = f.increaseMakespan(initialMakespan_ - 1);
     }
-    timeLimit   = std::min(endTime - Logger::getTime(), timeLimitPerMakespan);
+    timeLimit   = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
     bool solved = f.solve(timeLimit);
     if (solved) {
       log(4) << "solved in initial makespan " << makespan;
     }
     while (!solved) {
-      int increase =
-          std::max((int)(makespan * (makespanIncrease - 1) + 0.1), 1);
+      unsigned increase = std::max(
+          static_cast<unsigned>(
+              (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
+          1u);
       makespan  = f.increaseMakespan(increase);
-      timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan);
+      timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
       log(5) << "start solving makespan " << makespan;
       solved = f.solve(timeLimit);
     }
@@ -49,14 +51,17 @@ public:
     return solved;
   }
 
-  inline bool fixStep(State &from, AbstractPlan::Step &actions, State &to,
+  inline bool fixStep(State &from __attribute__((unused)),
+                      AbstractPlan::Step &actions,
+                      State &to __attribute__((unused)),
                       std::vector<action_t> &planForStep) {
     // all steps are correct for each order
     planForStep = actions;
     return true;
   }
 
-  inline void refine(AbstractPlan::Step &step) {
+  inline void refine(AbstractPlan::Step &step __attribute__((unused))) {
     assert(false);
-    return; }
+    return;
+  }
 };

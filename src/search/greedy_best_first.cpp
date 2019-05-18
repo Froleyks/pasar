@@ -11,9 +11,14 @@ GreedyBestFirst::GreedyBestFirst(Problem &problem) : BaseSearch(problem) {
 
 inline void GreedyBestFirst::updateGuideState(
     State &state, std::vector<State> &guideStates, std::vector<action_t> &plan,
-    std::vector<std::pair<int, size_t>> &milestones,
+    std::vector<std::pair<size_t, size_t>> &milestones,
     std::vector<char> &reachedGuideHint) {
-  for (int s = guideStates.size() - 2; s >= (int)firstGuideState; --s) {
+  // ignore actual goal state
+  if (guideStates.size() < 2) {
+    return;
+  }
+  for (size_t s = guideStates.size() - 2;
+       s != firstGuideState - 1; --s) {
     if (!reachedGuideHint[s]) {
       continue;
     }
@@ -30,7 +35,7 @@ inline void GreedyBestFirst::updateGuideState(
 
     if (satisfied) {
       // learn action to jump from last found guide state to this one
-      action_t a = addActionToProblem(problem, plan, milestones.back().second,
+      action_t a = addActionToProblem(problem_, plan, milestones.back().second,
                                       plan.size() - 1);
       log(4) << "added state space search action " << a;
       milestones.emplace_back(firstGuideState, plan.size());
@@ -45,7 +50,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
 
   double endTime = Logger::getTime() + timeLimit;
 
-  State state = problem.initialState;
+  State state = problem_.initialState;
   CompactState compactState(state);
   StateHashSet knownStates{compactState};
 
@@ -56,14 +61,14 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
   getApplicableActions(state, guideStates, appActions);
 
   // encountered guideState <first> at plan index <second>
-  std::vector<std::pair<int, size_t>> milestones = {{-1, 0}};
+  std::vector<std::pair<size_t, size_t>> milestones;
   milestones.reserve(guideStates.size());
 
   size_t checkTime = 0;
   // used to indicate if there is an action in the set of applicable actions
   // that might reach this state
   std::vector<char> reachedGuideHint(guideStates.size(), false);
-  while (!assignmentHolds(problem.goal, state)) {
+  while (!assignmentHolds(problem_.goal, state)) {
     if (checkTime++ % 128 == 0 && Logger::getTime() > endTime) {
       plan.clear();
       return false;
@@ -91,7 +96,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
       bool appliedAction = false;
       for (auto [gain, a] : appActions) {
         Assignment oldValues;
-        applyAssignment(problem.eff[a], compactState, oldValues);
+        applyAssignment(problem_.eff[a], compactState, oldValues);
         bool newState = knownStates.insert(compactState).second;
         if (!newState) {
           // state was visited before
@@ -99,10 +104,10 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
         } else {
           plan.push_back(a);
           changeHistory.push_back(oldValues);
-          applyAssignment(problem.eff[a], state);
+          applyAssignment(problem_.eff[a], state);
           updateGuideState(state, guideStates, plan, milestones,
                            reachedGuideHint);
-          updateApplicableActions(state, problem.eff[a], guideStates,
+          updateApplicableActions(state, problem_.eff[a], guideStates,
                                   appActions, reachedGuideHint);
           appliedAction = true;
           break;

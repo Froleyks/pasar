@@ -33,7 +33,7 @@ private:
         action_t packedU = translate[u];
         if (last != packedU) {
           last = packedU;
-          first.push_back(edges.size());
+          first.push_back(static_cast<unsigned>(edges.size()));
         }
         auto packedV = translate.find(v);
         if (packedV == translate.end()) {
@@ -43,7 +43,7 @@ private:
         edges.push_back(packedV->second);
       }
     }
-    first.push_back(edges.size());
+    first.push_back(static_cast<unsigned>(edges.size()));
   }
 
   void DFSinDAG(const std::vector<unsigned> &edges,
@@ -65,7 +65,7 @@ private:
     std::vector<char> visited(first.size() - 1, false);
     departure.resize(first.size() - 1, 0);
     unsigned time = 0;
-    for (size_t node = 0; node < first.size() - 1; ++node) {
+    for (unsigned node = 0; node < first.size() - 1; ++node) {
       if (!visited[node]) {
         DFSinDAG(edges, first, visited, departure, node, time);
       }
@@ -99,7 +99,7 @@ private:
     if (!solved) {
       return false;
     }
-    unsigned numRanked = ranking.size();
+    size_t numRanked = ranking.size();
     planForStep.reserve(actions.size());
     planForStep.resize(numRanked);
     for (auto a : actions) {
@@ -117,7 +117,7 @@ private:
   }
 
   inline void addNewActions() {
-    f.addVarsForActions(problem.numActions - firstActionToAdd);
+    f.addVarsForActions(problem_.numActions - firstActionToAdd);
 
     std::vector<std::pair<variable_t, value_t>> updatedSupports;
     updateValueSupport(firstActionToAdd, updatedSupports);
@@ -134,7 +134,7 @@ private:
     for (auto [variable, value] : updatedSupports) {
       updateFrame(variable, value);
     }
-    firstActionToAdd = problem.numActions;
+    firstActionToAdd = static_cast<action_t>(problem_.numActions);
   }
 
 public:
@@ -147,7 +147,7 @@ public:
     toggleFrame();
     effects();
 
-    firstActionToAdd = problem.numActions;
+    firstActionToAdd = static_cast<action_t>(problem.numActions);
   }
 
   inline bool
@@ -157,22 +157,23 @@ public:
 
     double endTime = Logger::getTime() + timeLimit;
     addNewActions();
-    unsigned makespan = f.getMakespan();
-    if (makespan == 1 && initialMakespan > 1) {
-      makespan = f.increaseMakespan(initialMakespan - 1);
+    size_t makespan = f.getMakespan();
+    if (makespan == 1 && initialMakespan_ > 1) {
+      makespan = f.increaseMakespan(initialMakespan_ - 1);
     }
-    timeLimit   = std::min(endTime - Logger::getTime(), timeLimitPerMakespan);
+    timeLimit   = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
     bool solved = f.solve(timeLimit);
     if (solved) {
       log(4) << "solved abstraction in initial makespan " << makespan;
     }
     while (!solved) {
-      int increase =
-          std::max((int)(makespan * (makespanIncrease - 1) + 0.1), 1);
-
+      unsigned increase = std::max(
+          static_cast<unsigned>(
+              (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
+          1u);
       makespan = f.increaseMakespan(increase);
 
-      timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan);
+      timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
       log(5) << "start solving makespan " << makespan;
       solved = f.solve(timeLimit);
     }
@@ -185,7 +186,9 @@ public:
     return solved;
   }
 
-  inline bool fixStep(State &from, AbstractPlan::Step &actions, State &to,
+  inline bool fixStep(State &from __attribute__((unused)),
+                      AbstractPlan::Step &actions,
+                      State &to __attribute__((unused)),
                       std::vector<action_t> &planForStep) {
     if (actions.empty()) {
       log(6) << "fixed step, empty";
@@ -214,6 +217,6 @@ public:
   inline void refine(AbstractPlan::Step &actions) {
     std::vector<std::pair<action_t, action_t>> edgeList;
     getInterferenceGraph(actions, edgeList);
-    addMutexes(f, edgeList);
+    addMutexes(edgeList);
   }
 };

@@ -13,22 +13,22 @@
 class ADAL {
 private:
   // parameters
-  int sparsification        = 1;
-  bool contraction          = false;
-  double abstractionTimeout = std::numeric_limits<double>::infinity();
-  double searchTimeout      = std::numeric_limits<double>::infinity();
+  int sparsification_        = 1;
+  bool contraction_          = false;
+  double abstractionTimeout_ = std::numeric_limits<double>::infinity();
+  double searchTimeout_      = std::numeric_limits<double>::infinity();
 
-  Problem &problem;
+  Problem &problem_;
 
   void abstractActionElimination(std::vector<AbstractPlan::Step> &steps) {
-    State state = problem.initialState;
-    for (int i = 0; i < (int)steps.size(); ++i) {
+    State state = problem_.initialState;
+    for (size_t i = 0; i < steps.size(); ++i) {
       State endPlanState = state;
       std::vector<AbstractPlan::Step> endPlan;
       for (size_t j = i + 1; j < steps.size(); ++j) {
         bool parallelApplicable = true;
         for (size_t a = 0; a < steps[j].size(); ++a) {
-          if (!BaseSearch::assignmentHolds(problem.pre[steps[j][a]],
+          if (!BaseSearch::assignmentHolds(problem_.pre[steps[j][a]],
                                            endPlanState)) {
             parallelApplicable = false;
           }
@@ -36,17 +36,17 @@ private:
         if (parallelApplicable) {
           endPlan.push_back(steps[j]);
           for (size_t a = 0; a < steps[j].size(); ++a) {
-            BaseSearch::applyAssignment(problem.eff[steps[j][a]], endPlanState);
+            BaseSearch::applyAssignment(problem_.eff[steps[j][a]], endPlanState);
           }
         }
       }
-      if (BaseSearch::assignmentHolds(problem.goal, endPlanState)) {
-        steps.erase(steps.begin() + i, steps.end());
+      if (BaseSearch::assignmentHolds(problem_.goal, endPlanState)) {
+        steps.erase(steps.begin() + static_cast<long>(i), steps.end());
         steps.insert(steps.end(), endPlan.begin(), endPlan.end());
         i--;
       } else {
         for (size_t a = 0; a < steps[i].size(); ++a) {
-          BaseSearch::applyAssignment(problem.eff[steps[i][a]], state);
+          BaseSearch::applyAssignment(problem_.eff[steps[i][a]], state);
         }
       }
     }
@@ -57,10 +57,10 @@ private:
   // side effect: the step is sparsified
   inline void unapplyActions(AbstractPlan::Step &step, State &state) {
     // vector of bool
-    std::vector<char> keepAction(step.size(), false);
+    std::vector<unsigned char> keepAction(step.size(), false);
     // remove fulfilled atoms from state
     for (size_t i = 0; i < step.size(); ++i) {
-      for (auto [variable, value] : problem.eff[step[i]]) {
+      for (auto [variable, value] : problem_.eff[step[i]]) {
         if (state[variable] == value) {
           keepAction[i]   = true;
           state[variable] = unassigned;
@@ -72,7 +72,7 @@ private:
       if (!keepAction[i]) {
         continue;
       }
-      for (auto [variable, value] : problem.pre[step[i]]) {
+      for (auto [variable, value] : problem_.pre[step[i]]) {
         assert(state[variable] == unassigned || state[variable] == value);
         state[variable] = value;
       }
@@ -93,8 +93,8 @@ private:
 
   void sparsify(std::vector<AbstractPlan::Step> &stepSequence) {
     // remove actions from the parallel plan that don't have relevant effects
-    State state = problem.goalState;
-    for (int s = stepSequence.size() - 1; s > -1; --s) {
+    State state = problem_.goalState;
+    for (size_t s = stepSequence.size() - 1; s != static_cast<size_t>(-1); --s) {
       unapplyActions(stepSequence[s], state);
     }
 
@@ -105,7 +105,7 @@ private:
     states.resize(f.state.size());
     for (size_t t = 0; t < f.state.size(); ++t) {
       states[t].resize(f.state[t].size());
-      for (int variable = 0; variable < f.state[t].size(); ++variable) {
+      for (variable_t variable = 0; variable < f.state[t].size(); ++variable) {
         states[t][variable] = f.getStateValue(variable, t);
       }
     }
@@ -115,9 +115,9 @@ private:
                             std::vector<State> &states) {
     states.clear();
     states.reserve(steps.size() + 1);
-    State state = problem.goalState;
+    State state = problem_.goalState;
     states.insert(states.begin(), state);
-    for (int s = steps.size() - 1; s > -1; --s) {
+    for (size_t s = steps.size() - 1; s != static_cast<size_t>(-1); --s) {
       unapplyActions(steps[s], state);
       states.insert(states.begin(), state);
     }
@@ -132,7 +132,7 @@ private:
     plan.resize(abstractPlanLength, noop);
     stepFixed.resize(abstractPlanLength, false);
     bool fixedPlan = true;
-    for (int s = abstractPlanLength - 1; s > -1; --s) {
+    for (size_t s = abstractPlanLength - 1; s != static_cast<size_t>(-1); --s) {
       // the abstract plan might be fixed
       std::vector<action_t> planForStep;
       int fixed =
@@ -141,7 +141,7 @@ private:
       if (fixed) {
         log(5) << "step " << s << " fixed";
         stepFixed[s] = true;
-        plan[s]      = addActionToProblem(problem, planForStep);
+        plan[s]      = addActionToProblem(problem_, planForStep);
       } else {
         log(5) << "step " << s << " failed";
         fixedPlan = false;
@@ -157,7 +157,7 @@ private:
                                std::vector<size_t> &originalIndex) {
     size_t planLength = stepFixed.size();
     size_t first      = planLength;
-    for (int s = 0; s < planLength; ++s) {
+    for (size_t s = 0; s < planLength; ++s) {
       if (stepFixed[s]) {
         if (first == planLength) {
           first = s;
@@ -169,7 +169,7 @@ private:
           }
         }
       } else {
-        addActionToProblem(problem, plan, first, s - 1);
+        addActionToProblem(problem_, plan, first, s - 1);
         first = planLength;
         // add the last state of every shortcut
         guideStates.push_back(abstractPlan.states[s]);
@@ -177,33 +177,33 @@ private:
       }
     }
     if (stepFixed.back()) {
-      addActionToProblem(problem, plan, first, planLength - 1);
+      addActionToProblem(problem_, plan, first, planLength - 1);
     }
     guideStates.push_back(abstractPlan.states.back());
     originalIndex.push_back(planLength - 1);
   }
 
 public:
-  ADAL(Problem &problem) : problem(problem) {}
+  ADAL(Problem &problem) : problem_(problem) {}
 
   template <class Abstraction, class Search>
   bool findPlan(Abstraction &abstraction, Search &search,
                 std::vector<action_t> &plan) {
     AbstractPlan abstractPlan;
     bool solvedAbstraction = false;
-    if (abstractionTimeout) {
+    if (abstractionTimeout_ != 0) {
       solvedAbstraction =
-          abstraction.solve(abstractPlan.steps, abstractionTimeout);
+          abstraction.solve(abstractPlan.steps, abstractionTimeout_);
     }
 
     std::vector<State> guideStates;
     if (!solvedAbstraction) {
       log(4) << "faild abstraction ";
-      guideStates = {problem.goalState};
-      return search.search(guideStates, plan, searchTimeout);
+      guideStates = {problem_.goalState};
+      return search.search(guideStates, plan, searchTimeout_);
     }
 
-    switch (sparsification) {
+    switch (sparsification_) {
       // complete states (if possible)
     case 0: {
       if constexpr (Abstraction::isSatBased) {
@@ -221,8 +221,8 @@ public:
       // action elimination
     case 2: {
       // remove actions from the parallel plan that don't have relevant effects
-      State state = problem.goalState;
-      for (int s = abstractPlan.steps.size() - 1; s > -1; --s) {
+      State state = problem_.goalState;
+      for (size_t s = abstractPlan.steps.size() - 1; s != static_cast<size_t>(-1); --s) {
         unapplyActions(abstractPlan.steps[s], state);
       }
       abstractActionElimination(abstractPlan.steps);
@@ -242,7 +242,7 @@ public:
     /// plan contraction
     // used to find the last visited guide state
     std::vector<size_t> originalIndex;
-    if (contraction) {
+    if (contraction_) {
       log(4) << "contraction on plan length " << abstractPlan.steps.size();
 
       abstractPlanContraction(stepFixed, plan, abstractPlan, guideStates,
@@ -255,8 +255,8 @@ public:
 
     plan.clear();
 
-    if (searchTimeout) {
-      solved = search.search(guideStates, plan, searchTimeout);
+    if (searchTimeout_ != 0) {
+      solved = search.search(guideStates, plan, searchTimeout_);
       if (solved) {
         return true;
       }
@@ -266,10 +266,10 @@ public:
 
     // refine abstraction
     size_t firstUnsolved = search.firstGuideState;
-    if (contraction) {
+    if (contraction_) {
       firstUnsolved = originalIndex[firstUnsolved];
     }
-    for (int s = firstUnsolved; s < stepFixed.size(); ++s) {
+    for (size_t s = firstUnsolved; s < stepFixed.size(); ++s) {
       if (!stepFixed[s]) {
         log(4) << "refine step " << s;
         abstraction.refine(abstractPlan.steps[s]);
@@ -279,22 +279,22 @@ public:
   }
 
   void setSparsification(bool sparsification) {
-    this->sparsification = sparsification;
+    sparsification_ = sparsification;
   }
 
-  void setContraction(bool contraction) { this->contraction = contraction; }
+  void setContraction(bool contraction) { contraction_ = contraction; }
 
   void setAbstractionTimeout(double abstractionTimeout) {
     if (abstractionTimeout < 0) {
       abstractionTimeout = std::numeric_limits<double>::infinity();
     }
-    this->abstractionTimeout = abstractionTimeout;
+    abstractionTimeout_ = abstractionTimeout;
   }
 
   void setSearchTimeout(double searchTimeout) {
     if (searchTimeout < 0) {
       searchTimeout = std::numeric_limits<double>::infinity();
     }
-    this->searchTimeout = searchTimeout;
+    searchTimeout_ = searchTimeout;
   }
 };

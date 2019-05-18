@@ -38,7 +38,7 @@ private:
         log(1) << "Warning: Ignoring axioms";
       }
     }
-    if (numValuesOfVariable > maxNumValues) {
+    if (static_cast<size_t>(numValuesOfVariable) > maxNumValues) {
       static bool once = true;
       if (once) {
         once = false;
@@ -50,7 +50,7 @@ private:
       // is prepositional
       mapping.emplace_back(numPreposition++, true);
     } else {
-      numValues.push_back(numValuesOfVariable);
+      numValues.push_back(static_cast<value_t>(numValuesOfVariable));
       mapping.emplace_back(numFinDomain++, false);
     }
 
@@ -76,21 +76,21 @@ private:
     in >> numPrevailConditions;
 
     // just a lower bound
-    pre.back().reserve(numPrevailConditions);
-    for (size_t i = 0; i < numPrevailConditions; ++i) {
-      int varIndex, value;
+    pre.back().reserve(static_cast<size_t>(numPrevailConditions));
+    for (size_t i = 0; i < static_cast<size_t>(numPrevailConditions); ++i) {
+      size_t varIndex, value;
       in >> varIndex >> value;
       varIndex = variablePermutation[varIndex];
       pre.back().emplace_back(varIndex, value);
     }
 
-    int numEffects;
+    size_t numEffects;
     in >> numEffects;
     pre.back().reserve(pre.back().size() + numEffects);
     eff.back().reserve(numEffects);
     for (size_t i = 0; i < numEffects; ++i) {
-      int numEffectConditions, varIndex, oldValues;
-      int newValue;
+      int numEffectConditions, oldValues;
+      size_t varIndex, newValue;
       in >> numEffectConditions >> varIndex >> oldValues >> newValue;
       varIndex = variablePermutation[varIndex];
       if (numEffectConditions) {
@@ -129,8 +129,8 @@ private:
     in >> numVarsInMutex;
     mutex.reserve(numVarsInMutex);
     for (size_t i = 0; i < numVarsInMutex; ++i) {
-      int variable;
-      int value;
+      size_t variable;
+      size_t value;
       in >> variable >> value;
       variable = variablePermutation[variable];
       mutex.emplace_back(variable, value);
@@ -147,8 +147,8 @@ public:
   std::vector<value_t> numValues;
 
   // actions
-  size_t numActions;
-  size_t lastOriginalAction;
+  size_t numActions = 0;
+  size_t lastOriginalAction = 0;
 
   // each action has one index in pre and eff
   // could be stored continuously in memory for better caching (would waste
@@ -216,7 +216,8 @@ public:
           variablePermutation.push_back(mapping[i].first);
           // first finDomain then preposition
           if (mapping[i].second) {
-            variablePermutation.back() += numFinDomain;
+            variablePermutation.back() = static_cast<variable_t>(
+                variablePermutation.back() + numFinDomain);
           }
         }
         state                      = s_mutex;
@@ -240,9 +241,9 @@ public:
         assert(token == "begin_state");
         initialState.resize(numVariables);
         for (size_t i = 0; i < numVariables; ++i) {
-          int value;
+          size_t value;
           in >> value;
-          initialState[variablePermutation[i]] = value;
+          initialState[variablePermutation[i]] = static_cast<value_t>(value);
         }
         in >> token;
         assert(token == "end_state");
@@ -251,15 +252,15 @@ public:
       case s_goal: {
         in >> token;
         assert(token == "begin_goal");
-        int numGoals;
+        size_t numGoals;
         in >> numGoals;
         goalState.resize(numVariables, unassigned);
         for (size_t i = 0; i < numGoals; ++i) {
-          int varIndex, value;
+          size_t varIndex, value;
           in >> varIndex >> value;
           varIndex = variablePermutation[varIndex];
           goal.emplace_back(varIndex, value);
-          goalState[varIndex] = value;
+          goalState[varIndex] = static_cast<value_t>(value);
         }
         in >> token;
         assert(token == "end_goal");

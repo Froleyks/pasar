@@ -11,5 +11,7 @@ using State      = std::vector<value_t>;
 // partial assignment
 using Assignment = std::vector<std::pair<variable_t, value_t>>;
 
-static constexpr value_t unassigned = std::numeric_limits<value_t>::max();
-static constexpr action_t noop      = std::numeric_limits<action_t>::max();
+static constexpr value_t unassigned __attribute__((unused)) =
+    std::numeric_limits<value_t>::max();
+static constexpr action_t noop __attribute__((unused)) =
+    std::numeric_limits<action_t>::max();

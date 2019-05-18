@@ -146,6 +146,7 @@ int main(int argc, char *argv[]) {
   } else {
     log(1) << "Valid plan of length " << plan.size();
   }
+  assert(valid);
 
   std::string outputFile = params.getString("planfile");
   if (!outputFile.empty()) {

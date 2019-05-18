@@ -9,8 +9,8 @@
 
 struct CompactState {
   inline static variable_t numFinDomain;
-  std::vector<value_t> finDomain;
-  std::vector<bool> preposition;
+  std::vector<value_t> finDomain{};
+  std::vector<bool> preposition{};
   CompactState(const State &other) {
     finDomain.clear();
     finDomain.reserve(numFinDomain);

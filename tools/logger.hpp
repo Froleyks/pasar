@@ -27,7 +27,8 @@ inline double &start() {
 inline double getAbsoluteTime() {
   timeval time;
   gettimeofday(&time, NULL);
-  return (double)time.tv_sec + (double)time.tv_usec * .000001;
+  return static_cast<double>(time.tv_sec) +
+         static_cast<double>(time.tv_usec) * .000001;
 }
 
 inline void initLogger(int logLevel) {
@@ -39,10 +40,10 @@ inline double getTime() { return getAbsoluteTime() - start(); }
 
 class Log {
 private:
-  std::ostringstream os;
+  std::ostringstream os{};
 
 public:
-  Log() : os() {}
+  Log() {}
   ~Log();
   std::ostringstream &get(int level);
 };

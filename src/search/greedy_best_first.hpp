@@ -6,7 +6,7 @@ class GreedyBestFirst : public BaseSearch {
 private:
   inline void updateGuideState(State &state, std::vector<State> &guideStates,
                                std::vector<action_t> &plan,
-                               std::vector<std::pair<int, size_t>> &milestones,
+                               std::vector<std::pair<size_t, size_t>> &milestones,
                                std::vector<char> &reachedGuideHint);
 
 public:

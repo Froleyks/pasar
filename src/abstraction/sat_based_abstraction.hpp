@@ -5,26 +5,26 @@
 class SatBasedAbstraction : public BaseAbstraction {
 private:
 protected:
-  unsigned initialMakespan    = 5;
-  double makespanIncrease     = 1.2;
-  double timeLimitPerMakespan = std::numeric_limits<double>::infinity();
+  unsigned initialMakespan_    = 5;
+  double makespanIncrease_     = 1.2;
+  double timeLimitPerMakespan_ = std::numeric_limits<double>::infinity();
 
   action_t firstActionToAdd = 0;
 
   inline void setInitialMakespan(unsigned initialMakespan) {
-    this->initialMakespan = initialMakespan;
+    initialMakespan_ = initialMakespan;
   }
 
   inline void setMakespanIncrease(double makespanIncrease) {
-    this->makespanIncrease = makespanIncrease;
+    makespanIncrease_ = makespanIncrease;
   }
 
   inline void setTimeLimitPerMakespan(double timeLimitPerMakespan) {
-    this->timeLimitPerMakespan = timeLimitPerMakespan;
+    timeLimitPerMakespan_ = timeLimitPerMakespan;
   }
 
   inline void
-  addMutexes(Formula &f,
+  addMutexes(
              const std::vector<std::pair<action_t, action_t>> &mutexes) {
     for (auto [a1, a2] : mutexes) {
       // -a1 v -a2
@@ -50,10 +50,10 @@ protected:
   /// SAT clauses
   inline void atMostOneValue() {
     // only for finite domain variables
-    for (variable_t variable = 0; variable < problem.numValues.size();
+    for (variable_t variable = 0; variable < problem_.numValues.size();
          ++variable) {
-      for (variable_t i = 0; i < problem.numValues[variable] - 1; ++i) {
-        for (variable_t j = i + 1; j < problem.numValues[variable]; ++j) {
+      for (variable_t i = 0; i < problem_.numValues[variable] - 1; ++i) {
+        for (variable_t j = static_cast<variable_t>(i + 1); j < problem_.numValues[variable]; ++j) {
           // -(variable,i) v -(variable, j)
           f.addS(variable, i, false);
           f.addS(variable, j, false);
@@ -65,10 +65,10 @@ protected:
 
   inline void initial() {
     // finite domain
-    for (variable_t variable = 0; variable < problem.numValues.size();
+    for (variable_t variable = 0; variable < problem_.numValues.size();
          ++variable) {
       for (value_t value = 0; value < f.state[0][variable].size(); ++value) {
-        if (problem.initialState[variable] == value) {
+        if (problem_.initialState[variable] == value) {
           f.addInitialStateAtom(variable, value, true);
         } else {
           f.addInitialStateAtom(variable, value, false);
@@ -76,10 +76,10 @@ protected:
       }
     }
     // prepostions
-    for (variable_t variable = problem.numValues.size();
-         variable < problem.numVariables; ++variable) {
+    for (variable_t variable = static_cast<variable_t>(problem_.numValues.size());
+         variable < problem_.numVariables; ++variable) {
       for (value_t value = 0; value < f.state[0][variable].size(); ++value) {
-        if (problem.initialState[variable] == value) {
+        if (problem_.initialState[variable] == value) {
           f.addInitialStateAtom(variable, value, true);
           continue;
         } else {
@@ -91,7 +91,7 @@ protected:
   }
 
   inline void assumeGoal() {
-    for (auto [variable, value] : problem.goal) {
+    for (auto [variable, value] : problem_.goal) {
       f.assumeAtLast(variable, value);
     }
   }
@@ -144,10 +144,10 @@ protected:
     f.close();
   }
 
-  inline void preconditions(size_t firstAction = 0) {
+  inline void preconditions(action_t firstAction = 0) {
     for (action_t a = firstAction; a < f.action[0].size(); ++a) {
       // a_t => pre(a)_t
-      for (auto [variable, value] : problem.pre[a]) {
+      for (auto [variable, value] : problem_.pre[a]) {
         f.addA(a, false);
         f.addS(variable, value);
         f.close();
@@ -155,10 +155,10 @@ protected:
     }
   }
 
-  inline void effects(size_t firstAction = 0) {
+  inline void effects(action_t firstAction = 0) {
     for (action_t a = firstAction; a < f.action[0].size(); ++a) {
       // a_t => eff(a)_t+1
-      for (auto [variable, value] : problem.eff[a]) {
+      for (auto [variable, value] : problem_.eff[a]) {
         f.addA(a, false);
         f.addS(variable, value, true, true);
         f.close();
