@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 include_directories(.)
 
 set (RUN_PARAMS
