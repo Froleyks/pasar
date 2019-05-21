@@ -4,7 +4,7 @@
 #include <vector>
 
 using variable_t = unsigned short int;
-using value_t    = unsigned char;
+using value_t    = unsigned short int;
 using action_t   = unsigned int;
 using State      = std::vector<value_t>;
 
