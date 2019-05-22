@@ -129,10 +129,13 @@ private:
   bool fixPlan(Abstraction &abstraction, AbstractPlan &abstractPlan,
                std::vector<action_t> &plan, std::vector<bool> &stepFixed) {
     size_t abstractPlanLength = abstractPlan.steps.size();
-    plan.resize(abstractPlanLength, noop);
+    plan.reserve(abstractPlanLength);
     stepFixed.resize(abstractPlanLength, false);
     bool fixedPlan = true;
     for (size_t s = abstractPlanLength - 1; s != static_cast<size_t>(-1); --s) {
+      if (abstractPlan.steps[s].empty()) {
+        continue;
+      }
       // the abstract plan might be fixed
       std::vector<action_t> planForStep;
       int fixed =
@@ -141,7 +144,7 @@ private:
       if (fixed) {
         log(5) << "step " << s << " fixed";
         stepFixed[s] = true;
-        plan[s]      = addActionToProblem(problem_, planForStep);
+        plan.insert(plan.begin(), addActionToProblem(problem_, planForStep));
       } else {
         log(5) << "step " << s << " failed";
         fixedPlan = false;
