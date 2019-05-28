@@ -7,7 +7,6 @@
 #include "src/problem/problem.hpp"
 #include "src/problem/validate_plan.hpp"
 
-#include "abstraction/cegar_foreach.hpp"
 #include "abstraction/foreach.hpp"
 #include "abstraction/no_guidance.hpp"
 #include "abstraction/true_exist.hpp"
@@ -47,56 +46,51 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     solver.setSearchTimeout(-1);
     NoGuidance abstraction(problem);
     DepthFirstSearch search(problem);
-    solved = solver.findPlan<NoGuidance, DepthFirstSearch>(abstraction, search,
-                                                           plan);
+    solved = solver.findPlan(abstraction, search, plan);
     break;
   }
   case 1: {
+    log(2) << "running schedule " << schedule << " greedy best first search";
+    solver.setAbstractionTimeout(0);
+    solver.setSearchTimeout(-1);
+    NoGuidance abstraction(problem);
+    GreedyBestFirst search(problem);
+    while (!solved) {
+      solved = solver.findPlan(abstraction, search, plan);
+    }
+    break;
+  }
+  case 2: {
     log(2) << "running schedule " << schedule << " foreach";
     solver.setAbstractionTimeout(-1);
     solver.setSearchTimeout(0);
     Foreach abstraction(problem);
     DepthFirstSearch search(problem);
 
-    solved =
-        solver.findPlan<Foreach, DepthFirstSearch>(abstraction, search, plan);
-    break;
-  }
-  case 2: {
-    log(2) << "running schedule " << schedule << " pure cegar foreach";
-    solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(0);
-    CegarForeach abstraction(problem);
-    DepthFirstSearch search(problem);
-    while (!solved) {
-      solved = solver.findPlan<CegarForeach, DepthFirstSearch>(abstraction,
-                                                               search, plan);
-    }
+    solved = solver.findPlan(abstraction, search, plan);
     break;
   }
   case 3: {
-    log(2) << "running schedule " << schedule << " cegar foreach";
+    log(2) << "running schedule " << schedule << " pure cegar foreach";
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(1);
-    CegarForeach abstraction(problem);
-    GreedyBestFirst search(problem);
+    solver.setSearchTimeout(0);
+    Foreach abstraction(problem, true);
+    DepthFirstSearch search(problem);
     while (!solved) {
-      solved = solver.findPlan<CegarForeach, GreedyBestFirst>(abstraction,
-                                                              search, plan);
+      solved = solver.findPlan(abstraction, search, plan);
     }
     break;
   }
   case 4: {
-    // log(2) << "running schedule " << schedule << " pure true exist";
-    // solver.setAbstractionTimeout(-1);
-    // solver.setSearchTimeout(0);
-    // CegarTrueExist abstraction(problem);
-    // DepthFirstSearch search(problem);
-    // while (!solved) {
-    //   solved = solver.findPlan<CegarTrueExist, DepthFirstSearch>(abstraction,
-    //                                                              search, plan);
-    // }
-    // break;
+    log(2) << "running schedule " << schedule << " cegar foreach";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(1);
+    Foreach abstraction(problem, true);
+    GreedyBestFirst search(problem);
+    while (!solved) {
+      solved = solver.findPlan(abstraction, search, plan);
+    }
+    break;
   }
   case 5: {
     log(2) << "running schedule " << schedule << " true exist";
@@ -110,14 +104,24 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     break;
   }
   case 6: {
-    log(2) << "running schedule " << schedule << " greedy best first search";
-    solver.setAbstractionTimeout(0);
-    solver.setSearchTimeout(-1);
-    NoGuidance abstraction(problem);
+    log(2) << "running schedule " << schedule << " pure cegar true exist";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(0);
+    TrueExist abstraction(problem, true);
+    DepthFirstSearch search(problem);
+    while (!solved) {
+      solved = solver.findPlan(abstraction, search, plan);
+    }
+    break;
+  }
+  case 7: {
+    log(2) << "running schedule " << schedule << " cegar true exist";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(1);
+    TrueExist abstraction(problem, true);
     GreedyBestFirst search(problem);
     while (!solved) {
-      solved = solver.findPlan<NoGuidance, GreedyBestFirst>(abstraction, search,
-                                                            plan);
+      solved = solver.findPlan(abstraction, search, plan);
     }
     break;
   }

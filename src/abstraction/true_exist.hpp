@@ -79,27 +79,6 @@ private:
     return true;
   }
 
-  inline void addNewActions() {
-    f.addVarsForActions(problem_.numActions - firstActionToAdd);
-
-    std::vector<std::pair<variable_t, value_t>> updatedSupports;
-    updateValueSupport(firstActionToAdd, updatedSupports);
-
-    // remove duplicates
-    std::sort(updatedSupports.begin(), updatedSupports.end());
-    updatedSupports.erase(
-        std::unique(updatedSupports.begin(), updatedSupports.end()),
-        updatedSupports.end());
-
-    preconditions(firstActionToAdd);
-    effects(firstActionToAdd);
-
-    for (auto [variable, value] : updatedSupports) {
-      updateFrame(variable, value);
-    }
-    firstActionToAdd = static_cast<action_t>(problem_.numActions);
-  }
-
   class CycleDetection {
     // [0..visiting - 1] are closed
     static constexpr unsigned char closed  = 0;
@@ -307,39 +286,23 @@ private:
   };
 
 public:
-  TrueExist(Problem &problem) : SatBasedAbstraction(problem, true) {
+  TrueExist(Problem &problem, bool cegar = false)
+      : SatBasedAbstraction(problem, true) {
     computeValueSupport();
     atMostOneValue();
     initial();
     assumeGoal();
     preconditions();
-    frame();
     effects();
 
     firstActionToAdd = static_cast<action_t>(problem.numActions);
 
-    std::vector<std::pair<action_t, action_t>> edgeList;
-    getInterferenceGraph(edgeList);
-    std::vector<unsigned> edges;
-    std::vector<unsigned> first;
-    std::unordered_map<action_t, unsigned> actionToPacked(problem.numActions);
-    std::vector<action_t> packedToAction;
-    packedToAction.reserve(problem.numActions);
-    translateToAdjacencyArray(edgeList, problem.numActions, edges, first,
-                              actionToPacked, packedToAction);
-    std::vector<std::vector<unsigned>> mutexes;
-    CycleDetection cycleDetection(edges, first);
-    cycleDetection.allMinimalCycles(mutexes);
-    std::vector<std::vector<unsigned>> actionMutexes;
-    for (auto &m : mutexes) {
-      actionMutexes.emplace_back();
-      actionMutexes.back().reserve(m.size());
-      for (auto a : m) {
-        actionMutexes.back().push_back(packedToAction[a]);
-      }
+    if (cegar) {
+      toggleFrame();
+    } else {
+      frame();
+      refine({}); // all
     }
-    log(4) << "computed all cycles";
-    addMutexes(actionMutexes);
   }
 
   inline bool
@@ -398,22 +361,36 @@ public:
     }
 
     bool fixed = tryOrderActions(actions, edgeList, planForStep);
-    if (!fixed) {
-      std::cout << "failed: ";
-      for (auto &a : actions) {
-        std::cout << a << " ";
-      }
-      std::cout << std::endl;
-    }
     return fixed;
   }
 
   // TODO inherit form unrelaxed sat encoding
-  inline void refine(AbstractPlan::Step &actions) {
-    for (auto a : actions) {
-      std::cout << a << " ";
+  inline void refine(const AbstractPlan::Step &actions) {
+    std::vector<std::pair<action_t, action_t>> edgeList;
+    if (actions.empty()) {
+      getInterferenceGraph(edgeList);
+    } else {
+      getInterferenceGraph(actions, edgeList);
     }
-    std::cout << std::endl;
-    assert(false);
+    std::vector<unsigned> edges;
+    std::vector<unsigned> first;
+    std::unordered_map<action_t, unsigned> actionToPacked(problem_.numActions);
+    std::vector<action_t> packedToAction;
+    packedToAction.reserve(problem_.numActions);
+    translateToAdjacencyArray(edgeList, problem_.numActions, edges, first,
+                              actionToPacked, packedToAction);
+    std::vector<std::vector<unsigned>> mutexes;
+    CycleDetection cycleDetection(edges, first);
+    cycleDetection.allMinimalCycles(mutexes);
+    std::vector<std::vector<unsigned>> actionMutexes;
+    for (auto &m : mutexes) {
+      actionMutexes.emplace_back();
+      actionMutexes.back().reserve(m.size());
+      for (auto a : m) {
+        actionMutexes.back().push_back(packedToAction[a]);
+      }
+    }
+    log(3) << "computed all cycles";
+    addMutexes(actionMutexes);
   }
 };

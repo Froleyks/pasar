@@ -45,6 +45,30 @@ protected:
     log(3) << "added " << mutexes.size() << " mutexes";
   }
 
+  inline void addNewActions() {
+    if (problem_.numActions == firstActionToAdd) {
+      return;
+    }
+    f.addVarsForActions(problem_.numActions - firstActionToAdd);
+
+    std::vector<std::pair<variable_t, value_t>> updatedSupports;
+    updateValueSupport(firstActionToAdd, updatedSupports);
+
+    // remove duplicates
+    std::sort(updatedSupports.begin(), updatedSupports.end());
+    updatedSupports.erase(
+        std::unique(updatedSupports.begin(), updatedSupports.end()),
+        updatedSupports.end());
+
+    preconditions(firstActionToAdd);
+    effects(firstActionToAdd);
+
+    for (auto [variable, value] : updatedSupports) {
+      updateFrame(variable, value);
+    }
+    firstActionToAdd = static_cast<action_t>(problem_.numActions);
+  }
+
   inline void
   extractStepSequence(std::vector<AbstractPlan::Step> &stepSequence) {
     stepSequence.resize(f.action.size() - 1);

@@ -8,7 +8,7 @@
 
 #include "src/search/depth_first_search.hpp"
 
-#include "abstraction/cegar_foreach.hpp"
+#include "abstraction/foreach.hpp"
 
 class ADAL {
 private:
