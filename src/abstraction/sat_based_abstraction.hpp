@@ -24,8 +24,7 @@ protected:
   }
 
   inline void
-  addMutexes(
-             const std::vector<std::pair<action_t, action_t>> &mutexes) {
+  addMutexes(const std::vector<std::pair<action_t, action_t>> &mutexes) {
     for (auto [a1, a2] : mutexes) {
       // -a1 v -a2
       f.addA(a1, false);
@@ -33,6 +32,17 @@ protected:
       f.close();
     }
     log(3) << "added " << mutexes.size() << " no interference clauses";
+  }
+
+  inline void addMutexes(const std::vector<std::vector<action_t>> &mutexes) {
+    for (auto &m : mutexes) {
+      // -a1 v -a2
+      for (auto a : m) {
+        f.addA(a, false);
+      }
+      f.close();
+    }
+    log(3) << "added " << mutexes.size() << " mutexes";
   }
 
   inline void
@@ -53,7 +63,8 @@ protected:
     for (variable_t variable = 0; variable < problem_.numValues.size();
          ++variable) {
       for (variable_t i = 0; i < problem_.numValues[variable] - 1; ++i) {
-        for (variable_t j = static_cast<variable_t>(i + 1); j < problem_.numValues[variable]; ++j) {
+        for (variable_t j = static_cast<variable_t>(i + 1);
+             j < problem_.numValues[variable]; ++j) {
           // -(variable,i) v -(variable, j)
           f.addS(variable, i, false);
           f.addS(variable, j, false);
@@ -76,7 +87,8 @@ protected:
       }
     }
     // prepostions
-    for (variable_t variable = static_cast<variable_t>(problem_.numValues.size());
+    for (variable_t variable =
+             static_cast<variable_t>(problem_.numValues.size());
          variable < problem_.numVariables; ++variable) {
       for (value_t value = 0; value < f.state[0][variable].size(); ++value) {
         if (problem_.initialState[variable] == value) {
