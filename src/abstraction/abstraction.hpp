@@ -63,6 +63,89 @@ protected:
     }
   }
 
+  // leaves are not translated to nodes
+  inline void translateToAdjacencyArray(
+      const std::vector<std::pair<action_t, action_t>> &edgeList,
+      const size_t numActions, std::vector<unsigned> &edges,
+      std::vector<unsigned> &first,
+      std::unordered_map<action_t, action_t> &translate) {
+    edges.reserve(edgeList.size());
+    first.reserve(numActions + 1);
+    // assertion: edgeList are ordered by first packedIndex
+    unsigned packedIndex         = 0;
+    unsigned last                = edgeList[0].first;
+    translate[edgeList[0].first] = packedIndex++;
+    // first[0]                  = 0;
+    for (size_t i = 1; i < edgeList.size(); ++i) {
+      if (last != edgeList[i].first) {
+        last = edgeList[i].first;
+        // first[packed_index]       = i;
+        translate[edgeList[i].first] = packedIndex++;
+      }
+    }
+    last = 0;
+    first.push_back(0);
+    {
+      for (auto [u, v] : edgeList) {
+        action_t packedU = translate[u];
+        if (last != packedU) {
+          last = packedU;
+          first.push_back(static_cast<unsigned>(edges.size()));
+        }
+        auto packedV = translate.find(v);
+        if (packedV == translate.end()) {
+          // do nothing. those are leaves of the graph
+          continue;
+        }
+        edges.push_back(packedV->second);
+      }
+    }
+    first.push_back(static_cast<unsigned>(edges.size()));
+  }
+
+  // leaves are not translated to nodes
+  inline void translateToAdjacencyArray(
+      const std::vector<std::pair<action_t, action_t>> &edgeList,
+      const size_t numActions, std::vector<unsigned> &edges,
+      std::vector<unsigned> &first,
+      std::unordered_map<action_t, action_t> &translate,
+      std::vector<action_t> &translateInveres) {
+    edges.reserve(edgeList.size());
+    first.reserve(numActions + 1);
+    // assertion: edgeList are ordered by first packedIndex
+    unsigned packedIndex = 0;
+    unsigned last        = edgeList[0].first;
+    translateInveres.push_back(edgeList[0].first);
+    translate[edgeList[0].first] = packedIndex++;
+    // first[0]                  = 0;
+    for (size_t i = 1; i < edgeList.size(); ++i) {
+      if (last != edgeList[i].first) {
+        last = edgeList[i].first;
+        // first[packed_index]       = i;
+        translateInveres.push_back(edgeList[i].first);
+        translate[edgeList[i].first] = packedIndex++;
+      }
+    }
+    last = 0;
+    first.push_back(0);
+    {
+      for (auto [u, v] : edgeList) {
+        action_t packedU = translate[u];
+        if (last != packedU) {
+          last = packedU;
+          first.push_back(static_cast<unsigned>(edges.size()));
+        }
+        auto packedV = translate.find(v);
+        if (packedV == translate.end()) {
+          // do nothing. those are leaves of the graph
+          continue;
+        }
+        edges.push_back(packedV->second);
+      }
+    }
+    first.push_back(static_cast<unsigned>(edges.size()));
+  }
+
   void
   getInterferenceGraph(const std::vector<action_t> &actions,
                        std::vector<std::pair<action_t, action_t>> &edgeList) {

@@ -7,53 +7,14 @@
 
 class CegarForeach : public SatBasedAbstraction {
 private:
-  inline void translateToAdjacencyArray(
-      const std::vector<std::pair<action_t, action_t>> &edgeList,
-      const size_t numActions, std::vector<unsigned> &edges,
-      std::vector<unsigned> &first,
-      std::unordered_map<action_t, action_t> &translate) {
-    edges.reserve(edgeList.size());
-    first.reserve(numActions + 1);
-    // assertion: edgeList are ordered by first packedIndex
-    unsigned packedIndex         = 0;
-    unsigned last                = edgeList[0].first;
-    translate[edgeList[0].first] = packedIndex++;
-    // first[0]                  = 0;
-    for (size_t i = 1; i < edgeList.size(); ++i) {
-      if (last != edgeList[i].first) {
-        last = edgeList[i].first;
-        // first[packed_index]       = i;
-        translate[edgeList[i].first] = packedIndex++;
-      }
-    }
-    last = 0;
-    first.push_back(0);
-    {
-      for (auto [u, v] : edgeList) {
-        action_t packedU = translate[u];
-        if (last != packedU) {
-          last = packedU;
-          first.push_back(static_cast<unsigned>(edges.size()));
-        }
-        auto packedV = translate.find(v);
-        if (packedV == translate.end()) {
-          // do nothing. those are leaves of the graph
-          continue;
-        }
-        edges.push_back(packedV->second);
-      }
-    }
-    first.push_back(static_cast<unsigned>(edges.size()));
-  }
-
-  void DFSinDAG(const std::vector<unsigned> &edges,
+  void dfs(const std::vector<unsigned> &edges,
                 const std::vector<unsigned> &first, std::vector<char> &visited,
                 std::vector<unsigned> &departure, const unsigned node,
                 unsigned &time) {
     visited[node] = true;
     for (size_t e = first[node]; e < first[node + 1]; ++e) {
       if (!visited[edges[e]]) {
-        DFSinDAG(edges, first, visited, departure, edges[e], time);
+        dfs(edges, first, visited, departure, edges[e], time);
       }
     }
     departure[node] = time++;
@@ -67,7 +28,7 @@ private:
     unsigned time = 0;
     for (unsigned node = 0; node < first.size() - 1; ++node) {
       if (!visited[node]) {
-        DFSinDAG(edges, first, visited, departure, node, time);
+        dfs(edges, first, visited, departure, node, time);
       }
     }
 
@@ -190,13 +151,7 @@ public:
                       AbstractPlan::Step &actions,
                       State &to __attribute__((unused)),
                       std::vector<action_t> &planForStep) {
-    if (actions.empty()) {
-      log(6) << "fixed step, empty";
-      planForStep = {noop};
-      return true;
-    }
-
-    if (actions.size() == 1) {
+    if (actions.size() < 1) {
       log(6) << "fixed step, only action ";
       planForStep = actions;
       return true;
