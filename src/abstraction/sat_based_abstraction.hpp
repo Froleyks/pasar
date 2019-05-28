@@ -66,8 +66,8 @@ protected:
         for (variable_t j = static_cast<variable_t>(i + 1);
              j < problem_.numValues[variable]; ++j) {
           // -(variable,i) v -(variable, j)
-          f.addS(variable, i, false);
-          f.addS(variable, j, false);
+          f.addS(variable, i, false, true);
+          f.addS(variable, j, false, true);
           f.close();
         }
       }
