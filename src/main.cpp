@@ -10,6 +10,7 @@
 #include "abstraction/cegar_foreach.hpp"
 #include "abstraction/foreach.hpp"
 #include "abstraction/no_guidance.hpp"
+#include "abstraction/true_exist.hpp"
 
 #include "src/search/depth_first_search.hpp"
 #include "src/search/greedy_best_first.hpp"
@@ -76,7 +77,7 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
   case 3: {
     log(2) << "running schedule " << schedule << " cegar foreach";
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(0.01);
+    solver.setSearchTimeout(1);
     CegarForeach abstraction(problem);
     GreedyBestFirst search(problem);
     while (!solved) {
@@ -86,6 +87,29 @@ bool runSchedule(ADAL &solver, Problem &problem, int schedule,
     break;
   }
   case 4: {
+    // log(2) << "running schedule " << schedule << " pure true exist";
+    // solver.setAbstractionTimeout(-1);
+    // solver.setSearchTimeout(0);
+    // CegarTrueExist abstraction(problem);
+    // DepthFirstSearch search(problem);
+    // while (!solved) {
+    //   solved = solver.findPlan<CegarTrueExist, DepthFirstSearch>(abstraction,
+    //                                                              search, plan);
+    // }
+    // break;
+  }
+  case 5: {
+    log(2) << "running schedule " << schedule << " true exist";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(0);
+    TrueExist abstraction(problem);
+    DepthFirstSearch search(problem);
+    while (!solved) {
+      solved = solver.findPlan(abstraction, search, plan);
+    }
+    break;
+  }
+  case 6: {
     log(2) << "running schedule " << schedule << " greedy best first search";
     solver.setAbstractionTimeout(0);
     solver.setSearchTimeout(-1);
@@ -123,6 +147,8 @@ int main(int argc, char *argv[]) {
   std::string problemFile = params.getFilename("sas");
 
   Problem problem(problemFile);
+  log(3) << "Variables " << problem.numVariables << " Actions "
+         << problem.numActions;
   std::vector<action_t> plan;
 
   ADAL solver(problem);
