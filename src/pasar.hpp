@@ -10,7 +10,7 @@
 
 #include "abstraction/foreach.hpp"
 
-class ADAL {
+class Pasar {
 private:
   // parameters
   int sparsification_        = 1;
@@ -187,7 +187,7 @@ private:
   }
 
 public:
-  ADAL(Problem &problem) : problem_(problem) {}
+  Pasar(Problem &problem) : problem_(problem) {}
 
   template <class Abstraction, class Search>
   bool findPlan(Abstraction &abstraction, Search &search,

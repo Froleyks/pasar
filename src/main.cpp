@@ -3,7 +3,7 @@
 #include "tools/logger.hpp"
 #include "tools/parameter_processor.hpp"
 
-#include "src/adal.hpp"
+#include "src/pasar.hpp"
 #include "src/problem/problem.hpp"
 #include "src/problem/validate_plan.hpp"
 
@@ -23,7 +23,6 @@ void outputPlan(std::string &outputFile, std::string &problemFile,
 }
 
 void addDefaults(ParameterProcessor &params) {
-  // ADAL
   params.addDefault("s", "1", "used abstraction and search schedule");
   params.addDefault("spar", "2",
                     "sparsification\n"
@@ -35,7 +34,7 @@ void addDefaults(ParameterProcessor &params) {
       "1: additional actions are learned and fewer guide states are used");
 }
 
-bool runSchedule(ADAL &solver, Problem &problem, int schedule,
+bool runSchedule(Pasar &solver, Problem &problem, int schedule,
                  std::vector<action_t> &plan) {
 
   bool solved = false;
@@ -137,7 +136,7 @@ int main(int argc, char *argv[]) {
   ParameterProcessor params(argc, argv);
   addDefaults(params);
   if (params.getFilename() == "") {
-    std::cout << "USAGE: ./ADAL_<solver> <planning.sas>\n" << std::endl;
+    std::cout << "USAGE: ./pasar_<solver> <planning.sas>\n" << std::endl;
     params.printDefaults();
     return 1;
   }
@@ -155,7 +154,7 @@ int main(int argc, char *argv[]) {
          << problem.numActions;
   std::vector<action_t> plan;
 
-  ADAL solver(problem);
+  Pasar solver(problem);
   solver.setSparsification(params.getInt("spar"));
   solver.setContraction(params.getInt("cont"));
 
