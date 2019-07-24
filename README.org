@@ -1,0 +1,13 @@
+* PASAR -- Planning as Satisfiability with Abstraction Refinement
+** Quick Start
+   - mkdir build
+   - cd build
+   - cmake ..
+   - make pasar_glucose
+   - ./pasar_glucose <planning.sas>
+** SAS+ formalism
+   To generate .sas files from pddl use the [[http://www.fast-downward.org/TranslatorOutputFormat][fast downward translator]].  
+** Different SAT solvers
+   Any SAT solver that implements the IPASIR interface can be used. The solvers glucose, lingeling, minisat, and picosat can be build with make pasar_<solver>.
+** Help
+   Executing the program without parameters prints a help message.
