@@ -5,9 +5,25 @@
    - cmake ..
    - make pasar_glucose
    - ./pasar_glucose <planning.sas>
-** SAS+ formalism
-   To generate .sas files from pddl use the [[http://www.fast-downward.org/TranslatorOutputFormat][fast downward translator]].  
-** Different SAT solvers
-   Any SAT solver that implements the IPASIR interface can be used. The solvers glucose, lingeling, minisat, and picosat can be build with make pasar_<solver>.
-** Help
-   Executing the program without parameters prints a help message.
+*** SAS+ Formalism
+    To generate .sas files from pddl use the [[http://www.fast-downward.org/TranslatorOutputFormat][fast downward translator]].  
+*** Different SAT Solvers
+    Any SAT solver that implements the IPASIR interface can be used. The solvers glucose, lingeling, minisat, and picosat can be build with make pasar_<solver>.
+*** Help
+    Executing the program without parameters prints a help message.
+** Algorithm Description
+   A lot of changes have been implemented since the version presented in the [[https://www.dominikschreiber.de/papers/2019-socs-pasar.pdf][SoCS 2019 paper]]. 
+   The algorithm repeats a cycle of *abstraction*, *search* and *refine* phases.
+
+   In the *abstraction* phase we try to solve a SAT formula which encodes an abstraction of the planning problem. When we find a model for the SAT formula we decode it into an abstract plan. An abstract plan consist of a sequence of states and intermediate action sets.
+
+   We extract two things from the abstract plan: *Learned actions* and *guide states*. First we try to order the action sets into a plan to get from one state to the next by topologically ordering the /disabling graph/. If we succeed the plan is contracted into a single action and added to the problem. The plan is saved as a witness for the correctness of the action. The learned actions can be used both by the SAT solver and the search algorithm during the next phase.
+
+   The guide states are the subset of relevant variable assignments in each state of the abstract plan. They are used to compute heuristic values for states visited during the search phase. To find the relevant variable assignments we start from the goal and execute a procedure similar to the backwards execution of the action sets.
+   
+   During the *search* phase a greedy best first search is executed. The heuristic used is the sum of the Hamming distances to the guide states, with a higher weight given to the states closer to the goal. The idea is to guide the search along a similar path through the search space as proposed by the abstract plan. In addition the search can also learn actions. When a guide state is visited and the path from the last visited guide state is sufficiently long, the plan from one guide state to the next is contracted into a single action and added to the problem.
+
+   If the search finds a plan to the goal, the learned actions in the plan can recursively be replaced with their witnesses and we return the valid plan. If the search fails to find a plan within its time limit the abstraction return the valid plan. For this we iterate over the action sets in the abstract plan starting with the one furthers towards the goal that was visited by the last search. For each action set we could not order during the abstraction phase, clauses are added to the formula to prevent this flaw from appearing in the next model the SAT solver finds.
+
+One important thing to note is that we use a small timeout (200 ms) for the search and then restart the cycle. This is usually not enough time to close enough states and find a solution in a sufficiently complex search space. So the algorithm relies on the abstraction eventually being refined enough for the search to find a solution with the help of the learned actions and the guide states.
+   
