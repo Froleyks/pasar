@@ -46,9 +46,11 @@ inline action_t addActionToProblem(Problem &problem,
                problem.eff.back());
 
   // add witness
-  problem.witness.push_back(plan);
+  problem.witness.push_back(
+      std::vector<action_t>(plan.begin() + static_cast<long>(first),
+                            plan.begin() + static_cast<long>(last) + 1));
 
-  log(5) << "learned action " << problem.pre.size() - 1 << " skips "
+  LOG(5) << "learned action " << problem.pre.size() - 1 << " skips "
          << plan.size();
   return static_cast<action_t>(problem.pre.size() - 1);
 }

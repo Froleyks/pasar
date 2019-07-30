@@ -27,7 +27,10 @@ private:
 public:
   ParameterProcessor() : filenames(), parameters(), defaultParameters() {}
 
-  ParameterProcessor(int argc, char **argv) : filenames(), parameters(), defaultParameters() { init(argc, argv); }
+  ParameterProcessor(int argc, char **argv)
+      : filenames(), parameters(), defaultParameters() {
+    init(argc, argv);
+  }
 
   void init(int argc, char **argv) {
     for (int i = 1; i < argc; ++i) {
@@ -62,7 +65,7 @@ public:
     return parameters.find(name) != parameters.end();
   }
 
-  int getInt(std::string name, int defaultValue = 0) {
+  int getInt(std::string name, int defaultValue = 0) const {
     auto val = parameters.find(name);
     if (val == parameters.end()) {
       return defaultValue;
@@ -78,7 +81,7 @@ public:
     return true;
   }
 
-  double getDouble(std::string name, double defaultValue = 0) {
+  double getDouble(std::string name, double defaultValue = 0) const {
     auto val = parameters.find(name);
     if (val == parameters.end()) {
       return defaultValue;
@@ -86,7 +89,7 @@ public:
     return stod(val->second);
   }
 
-  std::string getString(std::string name, std::string defaultValue = "") {
+  std::string getString(std::string name, std::string defaultValue = "") const {
     auto val = parameters.find(name);
     if (val == parameters.end()) {
       return defaultValue;
@@ -94,7 +97,7 @@ public:
     return val->second;
   }
 
-  std::string getFilename(std::string extension = "UNDEFINED") {
+  std::string getFilename(std::string extension = "UNDEFINED") const {
     auto val = filenames.find(extension);
     if (val == filenames.end()) {
       return lastAddedFilename;

@@ -40,29 +40,6 @@ protected:
     }
   }
 
-  void
-  getInterferenceGraph(std::vector<std::pair<action_t, action_t>> &edgeList) {
-    edgeList.clear();
-    for (action_t a = 0; a < problem_.numActions; ++a) {
-      std::unordered_set<unsigned> hasEdge(problem_.numActions);
-      for (auto p : problem_.pre[a]) {
-        for (unsigned otherValue = 0; otherValue < valueSupport[p.first].size();
-             ++otherValue) {
-          if (otherValue == p.second)
-            continue;
-          for (action_t otherA : valueSupport[p.first][otherValue]) {
-            // is a different action and has no edge from a jet
-            if (a != otherA && hasEdge.find(otherA) == hasEdge.end()) {
-              hasEdge.insert(otherA);
-              // a has to be executed before otherA
-              edgeList.emplace_back(a, otherA);
-            }
-          }
-        }
-      }
-    }
-  }
-
   // leaves are not translated to nodes
   inline void translateToAdjacencyArray(
       const std::vector<std::pair<action_t, action_t>> &edgeList,
@@ -110,6 +87,7 @@ protected:
       std::vector<unsigned> &first,
       std::unordered_map<action_t, action_t> &translate,
       std::vector<action_t> &translateInveres) {
+    translateInveres.reserve(numActions);
     edges.reserve(edgeList.size());
     first.reserve(numActions + 1);
     // assertion: edgeList are ordered by first packedIndex
@@ -147,12 +125,35 @@ protected:
   }
 
   void
+  getInterferenceGraph(std::vector<std::pair<action_t, action_t>> &edgeList) {
+    edgeList.clear();
+    for (action_t a = 0; a < problem_.numActions; ++a) {
+      std::unordered_set<unsigned> hasEdge(problem_.numActions);
+      for (auto p : problem_.pre[a]) {
+        for (unsigned otherValue = 0; otherValue < valueSupport[p.first].size();
+             ++otherValue) {
+          if (otherValue == p.second)
+            continue;
+          for (action_t otherA : valueSupport[p.first][otherValue]) {
+            // is a different action and has no edge from a jet
+            if (a != otherA && hasEdge.find(otherA) == hasEdge.end()) {
+              hasEdge.insert(otherA);
+              // a has to be executed before otherA
+              edgeList.emplace_back(a, otherA);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void
   getInterferenceGraph(const std::vector<action_t> &actions,
                        std::vector<std::pair<action_t, action_t>> &edgeList) {
     edgeList.clear();
     std::unordered_set<action_t> actionSet(actions.begin(), actions.end());
     for (auto a : actions) {
-      std::unordered_set<unsigned> hasEdge(problem_.numActions);
+      std::unordered_set<unsigned> hasEdge(actions.size());
       for (auto p : problem_.pre[a]) {
         for (unsigned otherValue = 0; otherValue < valueSupport[p.first].size();
              ++otherValue) {
@@ -173,5 +174,25 @@ protected:
   }
 
 public:
+  // logging
+  size_t numLearnedActions = 0;
+  size_t sumSkipped        = 0;
+  size_t numRefinements    = 0;
+  size_t sumRefineLength   = 0;
+  size_t numRefineSteps    = 0;
+
   BaseAbstraction(Problem &problem) : problem_(problem) {}
+  ~BaseAbstraction() {
+    LOG(3) << "Abstraction learned " << numLearnedActions << " actions";
+    if (sumSkipped) {
+      LOG(3) << "average length "
+             << static_cast<double>(sumSkipped) /
+                    static_cast<double>(numLearnedActions);
+    }
+    LOG(3) << "Added " << numRefinements << " interferances in "
+           << numRefineSteps << " steps";
+    LOG(3) << "average length "
+           << static_cast<double>(sumRefineLength) /
+                  static_cast<double>(numRefinements);
+  }
 };

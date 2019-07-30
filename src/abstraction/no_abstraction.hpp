@@ -2,12 +2,17 @@
 
 #include "src/abstraction/abstraction.hpp"
 
-class NoGuidance : public BaseAbstraction {
+class NoAbstraction {
 private:
 public:
-  static const bool isSatBased = false;
+  size_t numLearnedActions = 0;
+  size_t sumSkipped        = 0;
+  size_t numRefinements    = 0;
+  size_t sumRefineLength   = 0;
+  size_t numRefineSteps    = 0;
 
-  using BaseAbstraction::BaseAbstraction;
+  NoAbstraction(Problem problem __attribute__((unused))) {}
+  static const bool isSatBased = false;
 
   inline bool
   solve(std::vector<AbstractPlan::Step> &steps __attribute__((unused)),

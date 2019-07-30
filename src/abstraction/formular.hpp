@@ -128,7 +128,7 @@ public:
       // glucose fix
       ipasir_set_learn(solver, NULL, 0, NULL);
 
-      log(3) << "Using the incremental SAT solver" << ipasir_signature();
+      LOG(3) << "Using the incremental SAT solver" << ipasir_signature();
     }
 
     // set state variables
@@ -295,7 +295,7 @@ public:
 
   // assume goal and try to solve
   bool solve(double timeLimit = std::numeric_limits<double>::infinity()) {
-    log(5) << "start sat solver";
+    LOG(5) << "start sat solver";
     addClausesForAllSteps();
     activateAssumptions();
     double endTime = Logger::getTime() + timeLimit;
@@ -311,7 +311,7 @@ public:
     for (value_t value = 0; value < state[t][variable].size(); ++value) {
       int lit = state[t][variable][value];
       if (lit > 0) {
-        // TODO not important values
+        // == 0 ⇒ not important value, variables should have some value (>= 0)
         if (ipasir_val(solver, lit) >= 0) {
           return value;
         }

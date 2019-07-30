@@ -6,7 +6,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define log(level)                                                             \
+#define LOG(level)                                                             \
   if (level > Logger::currentLogLevel())                                       \
     ;                                                                          \
   else                                                                         \
@@ -61,7 +61,7 @@ inline Log getLogger() { return Log(); }
 inline void logHostname() {
   char hostname[HOST_NAME_MAX];
   gethostname(hostname, HOST_NAME_MAX);
-  log(1) << "hostname: " << hostname;
+  LOG(1) << "hostname: " << hostname;
 }
 
 } // namespace Logger

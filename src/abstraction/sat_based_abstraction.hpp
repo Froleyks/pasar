@@ -10,39 +10,34 @@ protected:
   double timeLimitPerMakespan_ = std::numeric_limits<double>::infinity();
 
   action_t firstActionToAdd = 0;
-
-  inline void setInitialMakespan(unsigned initialMakespan) {
-    initialMakespan_ = initialMakespan;
-  }
-
-  inline void setMakespanIncrease(double makespanIncrease) {
-    makespanIncrease_ = makespanIncrease;
-  }
-
-  inline void setTimeLimitPerMakespan(double timeLimitPerMakespan) {
-    timeLimitPerMakespan_ = timeLimitPerMakespan;
-  }
+  size_t firstNoGoodToAdd   = 0;
 
   inline void
   addMutexes(const std::vector<std::pair<action_t, action_t>> &mutexes) {
+    numRefineSteps++;
+    numRefinements += mutexes.size();
     for (auto [a1, a2] : mutexes) {
+      sumRefineLength += 2;
       // -a1 v -a2
       f.addA(a1, false);
       f.addA(a2, false);
       f.close();
     }
-    log(3) << "added " << mutexes.size() << " no interference clauses";
+    LOG(4) << "added " << mutexes.size() << " no interference clauses";
   }
 
   inline void addMutexes(const std::vector<std::vector<action_t>> &mutexes) {
+    numRefineSteps++;
+    numRefinements += mutexes.size();
     for (auto &m : mutexes) {
-      // -a1 v -a2
+      sumRefineLength += m.size();
+      // -a1 v -a2 v ...
       for (auto a : m) {
         f.addA(a, false);
       }
       f.close();
     }
-    log(3) << "added " << mutexes.size() << " mutexes";
+    LOG(4) << "added " << mutexes.size() << " mutexes";
   }
 
   inline void addNewActions() {
@@ -76,6 +71,9 @@ protected:
       for (action_t a = 0; a < f.action[t].size(); ++a) {
         if (f.getActionValue(a, t)) {
           stepSequence[t].push_back(a);
+          if (a > problem_.lastOriginalAction) {
+            LOG(3) << "Learned action in abstract plan " << a;
+          }
         }
       }
     }
@@ -219,4 +217,72 @@ public:
 
   SatBasedAbstraction(Problem &problem, bool togglable = false)
       : BaseAbstraction(problem), f(problem, togglable) {}
+
+  inline void setInitialMakespan(unsigned initialMakespan) {
+    initialMakespan_ = initialMakespan;
+  }
+
+  inline void setMakespanIncrease(double makespanIncrease) {
+    makespanIncrease_ = makespanIncrease;
+  }
+
+  inline void setTimeLimitPerMakespan(double timeLimitPerMakespan) {
+    timeLimitPerMakespan_ = timeLimitPerMakespan;
+    if (timeLimitPerMakespan == 0) {
+      timeLimitPerMakespan_ = std::numeric_limits<double>::infinity();
+    }
+  }
+
+
+  inline void addAllInterferances() {
+    std::vector<std::pair<action_t, action_t>> edgeList;
+    getInterferenceGraph(edgeList);
+    LOG(3) << "adding all interferances on " << edgeList.size() << " edges for each";
+    addMutexes(edgeList);
+  }
+
+
+  // return 0: unsolevd 1: solved in increased makespan 2: solved in initial
+  // makespan
+  inline int solve(std::vector<AbstractPlan::Step> &steps,
+                   double timeLimit = std::numeric_limits<double>::infinity()) {
+    LOG(4) << "start solving abstraction";
+
+    double endTime = Logger::getTime() + timeLimit;
+    addNewActions();
+    size_t makespan = f.getMakespan();
+    if (makespan == 1 && initialMakespan_ > 1) {
+      makespan = f.increaseMakespan(initialMakespan_ - 1);
+    }
+    timeLimit   = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
+    bool solved = f.solve(timeLimit);
+    if (solved) {
+      LOG(4) << "solved abstraction in initial makespan " << makespan;
+      extractStepSequence(steps);
+      return 2;
+    }
+    while (!solved) {
+      unsigned increase = std::max(
+          static_cast<unsigned>(
+              (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
+          1u);
+      makespan = f.increaseMakespan(increase);
+
+      timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
+      LOG(5) << "start solving makespan " << makespan;
+      solved = f.solve(timeLimit);
+      if (endTime <= Logger::getTime()) {
+        LOG(5) << "exceeded total time limit";
+        break;
+      }
+    }
+    if (solved) {
+      LOG(4) << "solved abstraction in makespan " << makespan;
+      extractStepSequence(steps);
+    } else {
+      LOG(4) << "failed in makespan " << makespan << Logger::getTime() - endTime
+             << " over time limit";
+    }
+    return solved;
+  }
 };

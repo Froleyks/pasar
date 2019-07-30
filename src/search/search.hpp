@@ -8,15 +8,25 @@
 #include "src/search/state_hash.hpp"
 #include "src/type_defs.hpp"
 
+#ifndef NDEGBUG
+#include <cmath>
+#endif
+
 class BaseSearch {
 private:
 protected:
+  // logging
+  size_t numLearnedActions = 0;
+  size_t sumSkipped        = 0;
+
+  unsigned seed_ = 42;
+
   // sort actions by gain
   struct WeightedAction {
-    // TODO this should be a float
-    int gain_;
+    float gain_;
     action_t action_;
-    WeightedAction(int gain, action_t action) : gain_(gain), action_(action) {}
+    WeightedAction(float gain, action_t action)
+        : gain_(gain), action_(action) {}
   };
 
   struct CompWeightedActions {
@@ -34,11 +44,11 @@ protected:
   Problem &problem_;
 
   // used for random tie-breaking
-  static constexpr int noiseRange = 10;
-  // gainDecayFactor ∈ (0, 1]
-  // low gainDecayFactor ⇒ guideStates further from the goal have less  impact
+  static constexpr float noiseRange = 100;
+  // gainDecayFactor ≥ 1
+  // high gainDecayFactor ⇒ guideStates further from the goal have less  impact
   // on the direction of the search
-  static constexpr double gainDecayFactor = 0.8;
+  float gainDecayFactor_ = 1.2f;
 
   // (variable, value)s ↦ actions; v → a ⇔ v ∈ pre(a)
   std::vector<std::vector<std::vector<action_t>>> actionSupport;
@@ -63,13 +73,21 @@ protected:
     }
   }
 
-  inline double gainOfAssignment(const Assignment &a, const State &state,
-                                 const std::vector<State> &guideStates,
-                                 std::vector<char> &reachedGuideHint) {
-    double gain  = 0;
-    double decay = 1;
+  inline float gainOfAssignment(const Assignment &a, const State &state,
+                                const std::vector<State> &guideStates,
+                                std::vector<char> &reachedGuideHint) {
+    // gainDecayFactor_ is small enough so that the gain cannot overflow
+    assert(gainDecayFactor_ <
+           std::pow((std::numeric_limits<float>::max() - noiseRange) /
+                        (static_cast<float>(guideStates.size() *
+                                            guideStates[0].size()) *
+                         noiseRange),
+                    (1.0f / static_cast<float>(guideStates.size()))));
+    float gain  = 0;
+    float decay = 1;
     // start from actual goal
-    for (size_t s = guideStates.size() - 1; s != firstGuideState - 1; --s) {
+    // for (size_t s = guideStates.size() - 1; s != firstGuideState - 1; --s) {
+    for (size_t s = firstGuideState; s < guideStates.size(); ++s) {
       bool mightReacheGuide = true;
       // compute change in hamming distance
       int stepGain = 0;
@@ -90,24 +108,32 @@ protected:
       }
       mightReacheGuide = mightReacheGuide && stepGain;
       reachedGuideHint[s] |= static_cast<char>(mightReacheGuide);
-      gain += stepGain * decay;
-      decay *= gainDecayFactor;
+      gain += decay * static_cast<float>(stepGain);
+      decay *= gainDecayFactor_;
     }
 
     // random tie-breaking
     gain *= noiseRange;
-    const double noise = (static_cast<double>(rand()) * noiseRange) / RAND_MAX;
+    const float noise = (static_cast<float>(rand()) * noiseRange) /
+                        static_cast<float>(RAND_MAX);
     gain += noise;
 
     return gain;
   }
 
-  inline double gainOfAssignment(const Assignment &a, const State &state,
-                                 std::vector<State> &guideStates) {
-    double gain  = 0;
-    double decay = 1;
+  inline float gainOfAssignment(const Assignment &a, const State &state,
+                                std::vector<State> &guideStates) {
+    // gainDecayFactor_ is small enough so that the gain cannot overflow
+    assert(gainDecayFactor_ <
+           std::pow((std::numeric_limits<float>::max() - noiseRange) /
+                        (static_cast<float>(guideStates.size() *
+                                            guideStates[0].size()) *
+                         noiseRange),
+                    (1.0f / static_cast<float>(guideStates.size()))));
+    float gain  = 0;
+    float decay = 1;
     // start from actual goal
-    for (size_t s = guideStates.size() - 1; s != static_cast<size_t>(-1); --s) {
+    for (size_t s = firstGuideState; s < guideStates.size(); ++s) {
       // compute change in hamming distance
       int stepGain = 0;
       for (auto [variable, value] : a) {
@@ -125,13 +151,14 @@ protected:
           }
         }
       }
-      gain += stepGain * decay;
-      decay *= gainDecayFactor;
+      gain += decay * static_cast<float>(stepGain);
+      decay *= gainDecayFactor_;
     }
 
     // random tie-breaking
     gain *= noiseRange;
-    const double noise = (static_cast<double>(rand()) * noiseRange) / RAND_MAX;
+    const float noise = (static_cast<float>(rand()) * noiseRange) /
+                        static_cast<float>(RAND_MAX);
     gain += noise;
 
     return gain;
@@ -179,8 +206,8 @@ protected:
     appActions.clear();
     for (action_t a = 0; a < problem_.numActions; ++a) {
       if (assignmentHolds(problem_.pre[a], state)) {
-        appActions.emplace(gainOfAssignment(problem_.eff[a], state, guideStates),
-                           a);
+        appActions.emplace(
+            gainOfAssignment(problem_.eff[a], state, guideStates), a);
       }
     }
   }
@@ -266,9 +293,21 @@ protected:
   }
 
 public:
-  BaseSearch(Problem &problem) : problem_(problem) {
-    constexpr unsigned seed = 42;
-    srand(seed);
+  size_t firstGuideState = 0;
+  BaseSearch(Problem &problem) : problem_(problem) { srand(seed_); }
+  ~BaseSearch() {
+    LOG(3) << "Search learned " << numLearnedActions << " actions";
+    if (sumSkipped) {
+      LOG(3) << "average length "
+             << static_cast<float>(sumSkipped) /
+                    static_cast<float>(numLearnedActions);
+    }
+  }
+
+  void setSeed(unsigned seed) { seed_ = seed; }
+
+  void setGainDecayFactor(double gainDecayFactor) {
+    gainDecayFactor_ = static_cast<float>(gainDecayFactor);
   }
 
   // check preconditions and goal
@@ -287,5 +326,4 @@ public:
       state[variable] = value;
     }
   }
-  size_t firstGuideState = 0;
 };

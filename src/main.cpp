@@ -7,12 +7,16 @@
 #include "src/problem/problem.hpp"
 #include "src/problem/validate_plan.hpp"
 
+#include "abstraction/cycle_break.hpp"
+#include "abstraction/fast_forward.hpp"
 #include "abstraction/foreach.hpp"
-#include "abstraction/no_guidance.hpp"
+#include "abstraction/leaf_reduction.hpp"
+#include "abstraction/no_abstraction.hpp"
 #include "abstraction/true_exist.hpp"
 
 #include "src/search/depth_first_search.hpp"
 #include "src/search/greedy_best_first.hpp"
+#include "src/search/no_search.hpp"
 
 void outputPlan(std::string &outputFile, std::string &problemFile,
                 std::vector<action_t> &plan) {
@@ -23,7 +27,22 @@ void outputPlan(std::string &outputFile, std::string &problemFile,
 }
 
 void addDefaults(ParameterProcessor &params) {
-  params.addDefault("s", "1", "used abstraction and search schedule");
+  params.addDefault("s", "0",
+                    "used abstraction and search schedule\n"
+                    "\t0: portfolio\n"
+                    "\t1: pasar true exist fallback foreach\n"
+                    "\t2: pasar true exist\n"
+                    "\t3: pasar foreach\n"
+                    "\t4: pasar leaf reduction\n"
+                    "\t5: pasar cycle break\n"
+                    "\t6: pure pasar true exist fallback foreach\n"
+                    "\t7: pure pasar foreach\n"
+                    "\t8: pure pasar cycle break\n"
+                    "\t9: encoding true exist\n"
+                    "\t10: encoding foreach\n"
+                    "\t11: fast forward portfolio\n"
+                    "\t12: greedy best first search\n"
+                    "\t13: depth first search\n");
   params.addDefault("spar", "2",
                     "sparsification\n"
                     "\t0: complete states\n"
@@ -31,103 +50,275 @@ void addDefaults(ParameterProcessor &params) {
                     "\t2: action elimination");
   params.addDefault(
       "cont", "0",
-      "1: additional actions are learned and fewer guide states are used");
+      "contraction\n"
+      "\t1: additional actions are learned and fewer guide states are used");
+
+  // search
+  params.addDefault("seed", "42",
+                    "seed used for random tie breaking during search");
+  params.addDefault(
+      "gdf", "1.2",
+      "gainDecayFactor ≥ 1\n"
+      "\thigh gainDecayFactor ⇒ guideStates further from the goal\n"
+      "\thave less impact on the direction of the search");
+
+  // abstraction
+  params.addDefault("im", "5", "initial makespan");
+  params.addDefault("mi", "1.2", "makespan increase");
+  params.addDefault("mt", "15",
+                    "\ttime limit per makespan\n"
+                    "\t0: disabled");
+  params.addDefault("sml", "40",
+                    "same makespan limit\n"
+                    "\tif enough abstractions are solved in the same makespan "
+                    "the cegar approach is aborted\n"
+                    "\t0: disable");
 }
 
-bool runSchedule(Pasar &solver, Problem &problem, int schedule,
-                 std::vector<action_t> &plan) {
-
-  bool solved = false;
+bool runSchedule(const ParameterProcessor &params, Pasar &solver,
+                 Problem &problem, int schedule, std::vector<action_t> &plan) {
+  bool solved                = false;
+  unsigned sameMakespanLimit = static_cast<unsigned>(params.getInt("sml"));
+  unsigned sameMakespanCount = 0;
   switch (schedule) {
   case 0: {
-    log(2) << "running schedule " << schedule << " depth first search";
+    LOG(2) << "running schedule " << schedule << " portfolio";
     solver.setAbstractionTimeout(0);
-    solver.setSearchTimeout(-1);
-    NoGuidance abstraction(problem);
-    DepthFirstSearch search(problem);
-    solved = solver.findPlan(abstraction, search, plan);
+    solver.setSearchTimeout(100);
+    NoAbstraction dummy(problem);
+    GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
+    solved = solver.findPlan(dummy, search, plan, sameMakespanCount);
+    if (!solved) {
+      TrueExist abstraction(problem, true);
+      solver.setSearchTimeout(0.2);
+      solver.setAbstractionTimeout(-1);
+      while (!solved) {
+        if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+          abstraction.addAllInterferances();
+        }
+        solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+      }
+    }
     break;
   }
   case 1: {
-    log(2) << "running schedule " << schedule << " greedy best first search";
-    solver.setAbstractionTimeout(0);
-    solver.setSearchTimeout(-1);
-    NoGuidance abstraction(problem);
+    LOG(2) << "running schedule " << schedule
+           << " pasar true exist fallback foreach";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(0.2);
+    TrueExist abstraction(problem, true);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
     GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
     while (!solved) {
-      solved = solver.findPlan(abstraction, search, plan);
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.addAllInterferances();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
     }
     break;
   }
   case 2: {
-    log(2) << "running schedule " << schedule << " foreach";
+    LOG(2) << "running schedule " << schedule << " pasar true exist";
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(0);
-    Foreach abstraction(problem);
-    DepthFirstSearch search(problem);
-
-    solved = solver.findPlan(abstraction, search, plan);
+    solver.setSearchTimeout(0.2);
+    TrueExist abstraction(problem, true);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
+    while (!solved) {
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.refine();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    }
     break;
   }
   case 3: {
-    log(2) << "running schedule " << schedule << " pure cegar foreach";
+    LOG(2) << "running schedule " << schedule << " pasar foreach";
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(0);
+    solver.setSearchTimeout(0.2);
     Foreach abstraction(problem, true);
-    DepthFirstSearch search(problem);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
     while (!solved) {
-      solved = solver.findPlan(abstraction, search, plan);
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.refine();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
     }
     break;
   }
   case 4: {
-    log(2) << "running schedule " << schedule << " cegar foreach";
+    LOG(2) << "running schedule " << schedule << " pasar leaf reduction";
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(1);
-    Foreach abstraction(problem, true);
+    solver.setSearchTimeout(0.2);
+    LeafReduction abstraction(problem, true);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
     GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
     while (!solved) {
-      solved = solver.findPlan(abstraction, search, plan);
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.refine();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
     }
     break;
   }
   case 5: {
-    log(2) << "running schedule " << schedule << " true exist";
+    LOG(2) << "running schedule " << schedule << " pasar cycle break";
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(0);
-    TrueExist abstraction(problem);
-    DepthFirstSearch search(problem);
+    solver.setSearchTimeout(0.2);
+    CycleBreak abstraction(problem);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
     while (!solved) {
-      solved = solver.findPlan(abstraction, search, plan);
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.refine();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
     }
     break;
   }
   case 6: {
-    log(2) << "running schedule " << schedule << " pure cegar true exist";
+    LOG(2) << "running schedule " << schedule
+           << " pure pasar true exist fallback foreach";
     solver.setAbstractionTimeout(-1);
     solver.setSearchTimeout(0);
     TrueExist abstraction(problem, true);
-    DepthFirstSearch search(problem);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    NoSearch search(problem);
     while (!solved) {
-      solved = solver.findPlan(abstraction, search, plan);
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.addAllInterferances();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
     }
     break;
   }
   case 7: {
-    log(2) << "running schedule " << schedule << " cegar true exist";
+    LOG(2) << "running schedule " << schedule << " pure pasar foreach";
     solver.setAbstractionTimeout(-1);
-    solver.setSearchTimeout(1);
-    TrueExist abstraction(problem, true);
-    GreedyBestFirst search(problem);
+    solver.setSearchTimeout(0);
+    Foreach abstraction(problem, true);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    NoSearch search(problem);
     while (!solved) {
-      solved = solver.findPlan(abstraction, search, plan);
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.refine();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
     }
     break;
   }
-  default:
-    log(1) << "Configuration not found";
-    return false;
+  case 8: {
+    LOG(2) << "running schedule " << schedule << " pure pasar cycle break";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(0);
+    CycleBreak abstraction(problem);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    NoSearch search(problem);
+    while (!solved) {
+      if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+        abstraction.refine();
+      }
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    }
     break;
+  }
+  case 9: {
+    LOG(2) << "running schedule " << schedule << " encoding true exist";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(0);
+    TrueExist abstraction(problem);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    NoSearch search(problem);
+    solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    break;
+  }
+  case 10: {
+    LOG(2) << "running schedule " << schedule << " encoding foreach";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(0);
+    Foreach abstraction(problem);
+    abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
+    abstraction.setMakespanIncrease(params.getDouble("mi"));
+    abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
+    NoSearch search(problem);
+    solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    break;
+  }
+  case 11: {
+    LOG(2) << "running schedule " << schedule << " fast forward portfolio";
+    solver.setAbstractionTimeout(-1);
+    solver.setSearchTimeout(100);
+    solver.setSparsification(0);
+    solver.setContraction(0);
+    FastForward ff(problem);
+    GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
+    solved = solver.findPlan(ff, search, plan, sameMakespanCount);
+    if (!solved) {
+      TrueExist abstraction(problem, true);
+      solver.setSearchTimeout(0.2);
+      solver.setAbstractionTimeout(-1);
+      while (!solved) {
+        if (sameMakespanLimit && sameMakespanCount >= sameMakespanLimit) {
+          abstraction.addAllInterferances();
+        }
+        solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+      }
+    }
+    break;
+  }
+  case 12: {
+    LOG(2) << "running schedule " << schedule << " greedy best first search";
+    solver.setAbstractionTimeout(0);
+    solver.setSearchTimeout(-1);
+    NoAbstraction abstraction(problem);
+    GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
+    solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    break;
+  }
+  case 13: {
+    LOG(2) << "running schedule " << schedule << " depth first search";
+    solver.setAbstractionTimeout(0);
+    solver.setSearchTimeout(-1);
+    NoAbstraction abstraction(problem);
+    DepthFirstSearch search(problem);
+    solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    break;
+  }
   }
   return solved;
 }
@@ -138,19 +329,16 @@ int main(int argc, char *argv[]) {
   if (params.getFilename() == "") {
     std::cout << "USAGE: ./pasar_<solver> <planning.sas>\n" << std::endl;
     params.printDefaults();
-    return 1;
+    return 0;
   }
   int verbosity = params.getInt("v");
   Logger::initLogger(verbosity);
-
   Logger::logHostname();
-
-  log(1) << params;
+  LOG(1) << params;
 
   std::string problemFile = params.getFilename("sas");
-
   Problem problem(problemFile);
-  log(3) << "Variables " << problem.numVariables << " Actions "
+  LOG(3) << "Variables " << problem.numVariables << " Actions "
          << problem.numActions;
   std::vector<action_t> plan;
 
@@ -159,21 +347,22 @@ int main(int argc, char *argv[]) {
   solver.setContraction(params.getInt("cont"));
 
   const int schedule = params.getInt("s");
-  bool solved        = runSchedule(solver, problem, schedule, plan);
+  bool solved        = runSchedule(params, solver, problem, schedule, plan);
 
   if (!solved) {
-    log(1) << "Problem not solved";
+    LOG(1) << "Problem not solved";
     return 1;
   }
 
-  problem.removeLearnedActions(plan);
+  auto [numRemoved, sumSkipped] = problem.removeLearnedActions(plan);
+  LOG(3) << "Used " << numRemoved << " learned actions skipping " << sumSkipped;
 
   bool valid = validatePlan<false>(plan, problem);
   if (!valid) {
-    log(1) << "Invalid";
+    LOG(1) << "Invalid";
     return 1;
   } else {
-    log(1) << "Valid plan of length " << plan.size();
+    LOG(1) << "Valid plan of length " << plan.size();
   }
   assert(valid);
 

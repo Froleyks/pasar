@@ -9,7 +9,7 @@ DepthFirstSearch::DepthFirstSearch(Problem &problem) : BaseSearch(problem) {
 
 bool DepthFirstSearch::search(std::vector<State> &guideStates __attribute__((unused)),
                               std::vector<action_t> &plan, double timeLimit) {
-  log(3) << "start forward search";
+  LOG(4) << "start forward search";
 
   double endTime = Logger::getTime() + timeLimit;
 
@@ -33,7 +33,7 @@ bool DepthFirstSearch::search(std::vector<State> &guideStates __attribute__((unu
       // deadend -> backtrack
       if (changeHistory.empty()) {
         plan.clear();
-        log(4) << "no actions applicable -> Problem unsolveable";
+        LOG(4) << "no actions applicable -> Problem unsolveable";
         return false;
       }
       applyAssignment(changeHistory.back(), compactState);
@@ -63,7 +63,7 @@ bool DepthFirstSearch::search(std::vector<State> &guideStates __attribute__((unu
         // all child states where visited -> backtrack
         if (changeHistory.empty()) {
           plan.clear();
-          log(4) << "exhausted search space";
+          LOG(4) << "exhausted search space";
           return false;
         }
         applyAssignment(changeHistory.back(), compactState);

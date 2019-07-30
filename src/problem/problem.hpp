@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cassert>
 #include <fstream>
-#include <iostream>
 #include <limits>
 #include <string>
 #include <vector>
@@ -35,14 +34,14 @@ private:
       static bool once = true;
       if (once) {
         once = false;
-        log(1) << "Warning: Ignoring axioms";
+        LOG(1) << "Warning: Ignoring axioms";
       }
     }
     if (static_cast<size_t>(numValuesOfVariable) > maxNumValues) {
       static bool once = true;
       if (once) {
         once = false;
-        log(1) << "Warning: number of values too high " << numValuesOfVariable;
+        LOG(1) << "Warning: number of values too high " << numValuesOfVariable;
       }
     }
 
@@ -97,7 +96,7 @@ private:
         static bool once = true;
         if (once) {
           once = false;
-          log(1)
+          LOG(1)
               << "Warning: Ignoring conditional effects. Parsing might break!";
         }
       }
@@ -113,7 +112,7 @@ private:
     static bool once = true;
     if (once) {
       once = false;
-      log(2) << "Warning: Ignoring metric";
+      LOG(2) << "Warning: Ignoring metric";
     }
 
     // TODO does this help?
@@ -147,7 +146,7 @@ public:
   std::vector<value_t> numValues;
 
   // actions
-  size_t numActions = 0;
+  size_t numActions         = 0;
   size_t lastOriginalAction = 0;
 
   // each action has one index in pre and eff
@@ -200,7 +199,7 @@ public:
       case s_variable: {
         in >> numVariables;
         if (numVariables > maxNumVariables) {
-          log(1) << "Warning: Too many Variables";
+          LOG(1) << "Warning: Too many Variables";
         }
         mapping.reserve(numVariables);
         numValues.reserve(numVariables);
@@ -270,7 +269,7 @@ public:
         in >> numActions;
         lastOriginalAction = numActions - 1;
         if (numActions > maxNumActions) {
-          log(1) << "Warning: Too many actions " << numActions;
+          LOG(1) << "Warning: Too many actions " << numActions;
         }
         pre.reserve(numActions);
         eff.reserve(numActions);
@@ -289,15 +288,19 @@ public:
           static bool once = true;
           if (once) {
             once = false;
-            log(1) << "Warning: Ignoring axiom";
+            LOG(1) << "Warning: Ignoring axiom";
           }
         }
       } break;
       }
     }
+    in.close();
   }
 
-  void removeLearnedActions(std::vector<action_t> &planWithLearned) {
+  std::pair<size_t, size_t>
+  removeLearnedActions(std::vector<action_t> &planWithLearned) {
+    size_t numRemoved = 0;
+    size_t sumSkipped = 0;
     std::vector<action_t> plan;
     bool removedAction;
     do {
@@ -309,10 +312,12 @@ public:
         }
         if (a > lastOriginalAction) {
           removedAction = true;
-          log(4) << "Removed learned action " << a << " inserted "
+          LOG(4) << "Removed learned action " << a << " inserted "
                  << witness[a - lastOriginalAction - 1].size();
           plan.insert(plan.end(), witness[a - lastOriginalAction - 1].begin(),
                       witness[a - lastOriginalAction - 1].end());
+          numRemoved++;
+          sumSkipped += witness[a - lastOriginalAction - 1].size();
         } else {
           plan.push_back(a);
         }
@@ -320,6 +325,7 @@ public:
       planWithLearned = std::move(plan);
       plan.clear();
     } while (removedAction);
+    return std::make_pair(numRemoved, sumSkipped);
   }
 
   static std::string planToString(std::string file,
@@ -346,6 +352,7 @@ public:
     for (size_t i = 0; i < plan.size(); ++i) {
       out << i << ": (" << actionNames[plan[i]] << ")" << std::endl;
     }
+    in.close();
     return out.str();
   }
 };

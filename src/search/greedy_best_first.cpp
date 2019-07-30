@@ -36,8 +36,14 @@ inline void GreedyBestFirst::updateGuideState(
       // learn action to jump from last found guide state to this one
       action_t a = addActionToProblem(problem_, plan, milestones.back().second,
                                       plan.size() - 1);
-      log(4) << "added state space search action " << a;
+      if (milestones.back().second < plan.size() - 1) {
+        numLearnedActions++;
+        sumSkipped += plan.size() - milestones.back().second;
+        LOG(4) << "added state space search action " << a << " "
+               << milestones.back().second << " " << plan.size() - 1;
+      }
       milestones.emplace_back(firstGuideState, plan.size());
+      LOG(4) << "update guide state " << firstGuideState << " to " << s + 1;
       firstGuideState = s + 1;
     }
   }
@@ -45,21 +51,21 @@ inline void GreedyBestFirst::updateGuideState(
 
 bool GreedyBestFirst::search(std::vector<State> &guideStates,
                              std::vector<action_t> &plan, double timeLimit) {
-  log(3) << "start forward search";
+  LOG(4) << "start forward search";
 
   double endTime = Logger::getTime() + timeLimit;
 
-  State state = problem_.initialState;
+  firstGuideState = 0;
+  State state     = problem_.initialState;
   CompactState compactState(state);
   StateHashSet knownStates{compactState};
-
   std::vector<Assignment> changeHistory;
 
   updateActionSupport();
   WeightedActionSet appActions;
   getApplicableActions(state, guideStates, appActions);
 
-  // encountered guideState <first> at plan index <second>
+  // before plan index <scond> <first> was the highest reached guideStates
   std::vector<std::pair<size_t, size_t>> milestones{{-1, 0}};
   milestones.reserve(guideStates.size());
 
@@ -76,7 +82,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
       // deadend -> backtrack
       if (changeHistory.empty()) {
         plan.clear();
-        log(4) << "no actions applicable -> Problem unsolveable";
+        LOG(4) << "no actions applicable -> Problem unsolveable";
         return false;
       }
       applyAssignment(changeHistory.back(), compactState);
@@ -116,7 +122,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
         // all child states where visited -> backtrack
         if (changeHistory.empty()) {
           plan.clear();
-          log(4) << "exhausted search space";
+          LOG(4) << "exhausted search space";
           return false;
         }
         applyAssignment(changeHistory.back(), compactState);
