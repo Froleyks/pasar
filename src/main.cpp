@@ -42,7 +42,8 @@ void addDefaults(ParameterProcessor &params) {
                     "\t10: encoding foreach\n"
                     "\t11: fast forward portfolio\n"
                     "\t12: greedy best first search\n"
-                    "\t13: depth first search\n");
+                    "\t13: depth first search\n"
+                    "\t14: restart search");
   params.addDefault("spar", "2",
                     "sparsification\n"
                     "\t0: complete states\n"
@@ -317,6 +318,19 @@ bool runSchedule(const ParameterProcessor &params, Pasar &solver,
     NoAbstraction abstraction(problem);
     DepthFirstSearch search(problem);
     solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    break;
+  }
+  case 14: {
+    LOG(2) << "running schedule " << schedule << " restart search";
+    solver.setAbstractionTimeout(0);
+    solver.setSearchTimeout(0.2);
+    NoAbstraction abstraction(problem);
+    GreedyBestFirst search(problem);
+    search.setSeed(static_cast<unsigned>(params.getInt("seed")));
+    search.setGainDecayFactor(params.getDouble("gdf"));
+    while (!solved) {
+      solved = solver.findPlan(abstraction, search, plan, sameMakespanCount);
+    }
     break;
   }
   }
