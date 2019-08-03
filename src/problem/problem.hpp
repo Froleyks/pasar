@@ -4,6 +4,7 @@
 #include <cassert>
 #include <fstream>
 #include <limits>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -138,7 +139,7 @@ private:
 
 public:
   Problem() {}
-  Problem(std::string file) { load(file); }
+  Problem(std::string file, const size_t seed) { load(file, seed); }
 
   // variables
   size_t numVariables = 0;
@@ -168,7 +169,7 @@ public:
   // expanded for faster random access
   State goalState;
 
-  void load(std::string file) {
+  void load(std::string file, const size_t seed) {
     enum PareseState {
       s_preamble,
       s_variable,
@@ -219,8 +220,20 @@ public:
                 variablePermutation.back() + numFinDomain);
           }
         }
-        state                      = s_mutex;
+        state = s_mutex;
+
         CompactState::numFinDomain = numFinDomain;
+
+        // Zobrist hash function
+        std::mt19937 gen(seed);
+        std::uniform_int_distribution<size_t> dis;
+        StateHash::zobrist.resize(numFinDomain);
+        for (size_t var = 0; var < numFinDomain; ++var) {
+          StateHash::zobrist.reserve(numValues[var]);
+          for (int val = 0; val < numValues[var]; ++val) {
+            StateHash::zobrist[var].push_back(dis(gen));
+          }
+        }
       } break;
       case s_mutex: {
         unsigned numMutexes;

@@ -39,11 +39,18 @@ struct CompactState {
 };
 
 struct StateHash {
-  // TODO zobrist hash function
+  // random number for each value of a finite domain variable
+  // used for fast hashing
+  inline static std::vector<std::vector<size_t>> zobrist;
+
   size_t operator()(const CompactState &s) const {
+    // The Zobrist hash function is only used for the finite domain variables.
+    // It is way faster than computing the hash of single variables but it
+    // cannot offset the cost of iterating over (compact) bool vectors.
+    assert(zobrist.size() == CompactState::numFinDomain);
     size_t hash = 0;
     for (size_t i = 0; i < s.finDomain.size(); ++i) {
-      hash ^= std::hash<value_t>()(s.finDomain[i]);
+      hash ^= zobrist[i][s.finDomain[i]];
     }
     hash ^= std::hash<std::vector<bool>>()(s.preposition);
     return hash;

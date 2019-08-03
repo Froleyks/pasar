@@ -351,7 +351,8 @@ int main(int argc, char *argv[]) {
   LOG(1) << params;
 
   std::string problemFile = params.getFilename("sas");
-  Problem problem(problemFile);
+  size_t seed = static_cast<size_t>(params.getInt("seed"));
+  Problem problem(problemFile, seed);
   LOG(3) << "Variables " << problem.numVariables << " Actions "
          << problem.numActions;
   std::vector<action_t> plan;
