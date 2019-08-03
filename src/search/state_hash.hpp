@@ -45,7 +45,7 @@ struct StateHash {
     for (size_t i = 0; i < s.finDomain.size(); ++i) {
       hash ^= std::hash<value_t>()(s.finDomain[i]);
     }
-    hash = std::hash<std::vector<bool>>()(s.preposition);
+    hash ^= std::hash<std::vector<bool>>()(s.preposition);
     return hash;
   }
 };
