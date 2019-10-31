@@ -16,6 +16,7 @@ private:
   int sparsification_        = 1;
   bool contraction_          = false;
   double abstractionTimeout_ = std::numeric_limits<double>::infinity();
+  int abstractionLimit_      = -1;
   double searchTimeout_      = std::numeric_limits<double>::infinity();
 
   Problem &problem_;
@@ -149,9 +150,9 @@ private:
         LOG(5) << "step " << s << " fixed";
         stepFixed[s] = true;
         plan.insert(plan.begin(), addActionToProblem(problem_, planForStep));
-        if (plan.size() > 1) {
+        if (planForStep.size() > 1) {
           abstraction.numLearnedActions++;
-          abstraction.sumSkipped += plan.size();
+          abstraction.sumSkipped += planForStep.size();
         }
       } else {
         LOG(5) << "step " << s << " failed";

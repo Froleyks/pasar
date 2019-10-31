@@ -1,3 +1,5 @@
+#error "not used"
+
 #pragma once
 
 #include <functional>

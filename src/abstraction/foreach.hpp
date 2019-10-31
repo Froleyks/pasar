@@ -1,8 +1,5 @@
 #pragma once
 
-#include <functional>
-#include <unordered_map>
-
 #include "src/abstraction/unrelaxed.hpp"
 
 class Foreach : public Unrelaxed {

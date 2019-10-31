@@ -1,14 +1,10 @@
 #pragma once
 
-#include <functional>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "src/abstraction/unrelaxed.hpp"
-#include "src/abstraction/leaf_reduction.hpp"
 
-
-class TrueExist : public Unrelaxed {
+class Exist : public Unrelaxed {
 private:
   // TODO The correctness of this algorithm is not proven!
   class CycleDetection {
@@ -22,7 +18,7 @@ private:
     //    All cycles of length two are identified by sorting the give edge list.
     //    The cycles are removed from the graph and the connected nodes are
     //    inserted in each others blockList.
-    // 2) leafReduction / SCC TODO
+    // 2) SCC TODO
     // 3) minimal cycle detection with exponential DFS (revisiting nodes) using
     // the blockLists introduced in step 1.
 
@@ -276,7 +272,7 @@ private:
   };
 
 public:
-  TrueExist(Problem &problem, bool cegar = false) : Unrelaxed(problem) {
+  Exist(Problem &problem, bool cegar = false) : Unrelaxed(problem) {
     if (cegar) {
       toggleFrame();
     } else {
@@ -284,6 +280,10 @@ public:
       refine(); // all
     }
   }
+
+  int fallback_ = 0;
+
+  inline void setFallback(int fallback) { fallback_ = fallback; }
 
   inline void refine(const AbstractPlan::Step &actions) {
     std::vector<std::pair<action_t, action_t>> edgeList;
@@ -294,8 +294,52 @@ public:
   inline void refine() {
     std::vector<std::pair<action_t, action_t>> edgeList;
     getInterferenceGraph(edgeList);
-    LOG(3) << "adding all interferances on " << edgeList.size() << " edges";
-    refine(edgeList, problem_.numActions);
+    switch (fallback_) {
+    case 0: {
+      LOG(3) << "adding all interferances on " << edgeList.size()
+             << " edges (exist)";
+      refine(edgeList, problem_.numActions);
+      break;
+    }
+    case 1: {
+      LOG(3) << "adding all interferances on " << edgeList.size()
+             << " edges (foreach)";
+      addMutexes(edgeList);
+      break;
+    }
+    case 2: {
+      LOG(3) << "adding all interferances on " << edgeList.size()
+             << " edges (cycle break)";
+      std::vector<unsigned> edges;
+      std::vector<unsigned> first;
+      std::unordered_map<action_t, unsigned> actionToPacked;
+      std::vector<action_t> packedToAction;
+      translateToAdjacencyArray(edgeList, problem_.numActions, edges, first,
+                                actionToPacked, packedToAction);
+
+      std::vector<unsigned> departure;
+      std::vector<char> visited(first.size() - 1, false);
+      departure.resize(first.size() - 1, 0);
+      unsigned time = 0;
+      for (unsigned node = 0; node < first.size() - 1; ++node) {
+        if (!visited[node]) {
+          dfs(edges, first, visited, departure, node, time);
+        }
+      }
+
+      std::vector<std::pair<action_t, action_t>> mutexes;
+      for (size_t node = 0; node < first.size() - 1; ++node) {
+        for (size_t edge = first[node]; edge < first[node + 1]; ++edge) {
+          if (departure[node] < departure[edges[edge]]) {
+            mutexes.emplace_back(packedToAction[node],
+                                 packedToAction[edges[edge]]);
+          }
+        }
+      }
+      addMutexes(mutexes);
+      break;
+    }
+    }
   }
 
   inline void
@@ -361,7 +405,7 @@ public:
     }
 
     const size_t numNonShort = edgeList.size();
-    LeafReduction::leafReduction(edgeList);
+    // LeafReduction::leafReduction(edgeList);
     LOG(4) << "leaf reduction removed " << numNonShort - edgeList.size();
 
     // build adjacency array from edge list with non consecutive indices

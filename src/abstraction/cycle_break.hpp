@@ -1,14 +1,18 @@
 #pragma once
 
-#include <functional>
 #include <unordered_map>
 
 #include "src/abstraction/unrelaxed.hpp"
 
 class CycleBreak : public Unrelaxed {
 public:
-  CycleBreak(Problem &problem) : Unrelaxed(problem) {
+  CycleBreak(Problem &problem, bool cegar = false) : Unrelaxed(problem) {
+    if (cegar) {
       toggleFrame();
+    } else {
+      frame();
+      refine(); // all
+    }
   }
 
   inline void refine(const AbstractPlan::Step &actions) {
@@ -18,7 +22,10 @@ public:
   }
 
   inline void refine() {
-    addAllInterferances();
+    std::vector<std::pair<action_t, action_t>> edgeList;
+    getInterferenceGraph(edgeList);
+    LOG(3) << "adding all interferances on " << edgeList.size() << " edges";
+    refine(edgeList, problem_.numActions);
   }
 
   inline void refine(std::vector<std::pair<action_t, action_t>> &edgeList,

@@ -228,19 +228,10 @@ public:
 
   inline void setTimeLimitPerMakespan(double timeLimitPerMakespan) {
     timeLimitPerMakespan_ = timeLimitPerMakespan;
-    if (timeLimitPerMakespan == 0) {
+    if (timeLimitPerMakespan < 0) {
       timeLimitPerMakespan_ = std::numeric_limits<double>::infinity();
     }
   }
-
-
-  inline void addAllInterferances() {
-    std::vector<std::pair<action_t, action_t>> edgeList;
-    getInterferenceGraph(edgeList);
-    LOG(3) << "adding all interferances on " << edgeList.size() << " edges for each";
-    addMutexes(edgeList);
-  }
-
 
   // return 0: unsolevd 1: solved in increased makespan 2: solved in initial
   // makespan

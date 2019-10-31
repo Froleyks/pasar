@@ -7,7 +7,8 @@ DepthFirstSearch::DepthFirstSearch(Problem &problem) : BaseSearch(problem) {
   computeActionSupport();
 }
 
-bool DepthFirstSearch::search(std::vector<State> &guideStates __attribute__((unused)),
+bool DepthFirstSearch::search(std::vector<State> &guideStates
+                              __attribute__((unused)),
                               std::vector<action_t> &plan, double timeLimit) {
   LOG(4) << "start forward search";
 

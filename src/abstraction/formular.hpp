@@ -5,7 +5,6 @@ extern "C" {
 }
 
 #include "src/problem/problem.hpp"
-#include "tools/logger.hpp"
 #include <limits>
 
 // this capsules the ipasir interface
@@ -300,8 +299,7 @@ public:
     activateAssumptions();
     double endTime = Logger::getTime() + timeLimit;
     ipasir_set_terminate(solver, &endTime, [](void *time) {
-      return static_cast<int>(Logger::getTime() >
-                              *static_cast<double *>(time));
+      return static_cast<int>(Logger::getTime() > *static_cast<double *>(time));
     });
     int satRes = ipasir_solve(solver);
     return satRes == 10;

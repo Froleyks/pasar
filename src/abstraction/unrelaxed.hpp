@@ -1,8 +1,5 @@
 #pragma once
 
-#include <functional>
-#include <unordered_map>
-
 #include "src/abstraction/sat_based_abstraction.hpp"
 
 class Unrelaxed : public SatBasedAbstraction {
@@ -91,6 +88,11 @@ public:
   inline bool fixStep(State &from __attribute__((unused)),
                       AbstractPlan::Step &actions,
                       State &to __attribute__((unused)),
+                      std::vector<action_t> &planForStep) {
+    return fixStep(actions, planForStep);
+  }
+
+  inline bool fixStep(AbstractPlan::Step &actions,
                       std::vector<action_t> &planForStep) {
     if (actions.size() < 1) {
       LOG(6) << "fixed step, only action ";

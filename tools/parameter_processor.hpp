@@ -145,8 +145,14 @@ public:
     }
     maxName++;
     maxValue++;
+    std::string separator = "";
+    for (size_t i = 0; i < 80; ++i) {
+      separator += "-";
+    }
+    separator += "\n";
     for (auto [name, defaultValue, description] : defaultParameters) {
-      std::cout << std::right << std::setw(static_cast<int>(maxName)) << name;
+      std::cout << separator;
+      std::cout << std::setw(static_cast<int>(maxName)) << name;
       std::cout << std::right << std::setw(static_cast<int>(maxValue))
                 << defaultValue << "  ";
       std::cout << std::left << description;
