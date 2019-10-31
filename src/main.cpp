@@ -101,9 +101,10 @@ template <class Abstraction>
 void runEncoding(const ParameterProcessor &params, Abstraction &abstraction,
                  std::vector<action_t> &plan) {
   static_assert(Abstraction::isSatBased);
+  abstraction.setConflictLimitPerMakespan(params.getInt("ml"));
+  abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
   abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
   abstraction.setMakespanIncrease(params.getDouble("mi"));
-  abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
   std::vector<AbstractPlan::Step> steps;
   abstraction.solve(steps);
   // flatten plan
@@ -124,9 +125,10 @@ void runPasar(const ParameterProcessor &params, Pasar &solver,
   solver.setAbstractionTimeout(params.getDouble("at"));
   solver.setSearchTimeout(params.getDouble("st"));
 
+  abstraction.setConflictLimitPerMakespan(params.getInt("ml"));
+  abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
   abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
   abstraction.setMakespanIncrease(params.getDouble("mi"));
-  abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
 
   search.setSeed(static_cast<unsigned>(params.getInt("seed")));
   search.setGainDecayFactor(params.getDouble("gdf"));

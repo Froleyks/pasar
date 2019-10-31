@@ -45,6 +45,7 @@ add_custom_command(
   )
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/sat/glucose4)
 add_executable(pasar_glucose ${SOURCE_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/sat/glucose4/libipasirglucose4.a)
+target_compile_definitions(pasar_glucose PRIVATE GLUCOSE)
 target_link_libraries(pasar_glucose ipasirglucose4.a)
 
 # minisat

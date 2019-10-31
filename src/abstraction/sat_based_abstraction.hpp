@@ -5,9 +5,10 @@
 class SatBasedAbstraction : public BaseAbstraction {
 private:
 protected:
-  unsigned initialMakespan_    = 5;
-  double makespanIncrease_     = 1.2;
-  double timeLimitPerMakespan_ = std::numeric_limits<double>::infinity();
+  int conflictLimitPerMakespan_ = -1;
+  double timeLimitPerMakespan_  = std::numeric_limits<double>::infinity();
+  unsigned initialMakespan_     = 5;
+  double makespanIncrease_      = 1.2;
 
   action_t firstActionToAdd = 0;
   size_t firstNoGoodToAdd   = 0;
@@ -218,12 +219,12 @@ public:
   SatBasedAbstraction(Problem &problem, bool togglable = false)
       : BaseAbstraction(problem), f(problem, togglable) {}
 
-  inline void setInitialMakespan(unsigned initialMakespan) {
-    initialMakespan_ = initialMakespan;
-  }
-
-  inline void setMakespanIncrease(double makespanIncrease) {
-    makespanIncrease_ = makespanIncrease;
+  inline void setConflictLimitPerMakespan(int conflictLimitPerMakespan) {
+#ifndef GLUCOSE
+    // only glucose supports this setting
+    assert(conflictLimitPerMakespan < 0);
+#endif
+    conflictLimitPerMakespan_ = conflictLimitPerMakespan;
   }
 
   inline void setTimeLimitPerMakespan(double timeLimitPerMakespan) {
@@ -231,6 +232,14 @@ public:
     if (timeLimitPerMakespan < 0) {
       timeLimitPerMakespan_ = std::numeric_limits<double>::infinity();
     }
+  }
+
+  inline void setInitialMakespan(unsigned initialMakespan) {
+    initialMakespan_ = initialMakespan;
+  }
+
+  inline void setMakespanIncrease(double makespanIncrease) {
+    makespanIncrease_ = makespanIncrease;
   }
 
   // return 0: unsolevd 1: solved in increased makespan 2: solved in initial
@@ -246,7 +255,7 @@ public:
       makespan = f.increaseMakespan(initialMakespan_ - 1);
     }
     timeLimit   = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
-    bool solved = f.solve(timeLimit);
+    bool solved = f.solve(timeLimit, conflictLimitPerMakespan_);
     if (solved) {
       LOG(4) << "solved abstraction in initial makespan " << makespan;
       extractStepSequence(steps);
@@ -261,7 +270,7 @@ public:
 
       timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
       LOG(5) << "start solving makespan " << makespan;
-      solved = f.solve(timeLimit);
+      solved = f.solve(timeLimit, conflictLimitPerMakespan_);
       if (endTime <= Logger::getTime()) {
         LOG(5) << "exceeded total time limit";
         break;

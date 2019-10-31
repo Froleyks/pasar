@@ -125,4 +125,7 @@ void ipasir_set_terminate (void * solver, void * state, int (*terminate)(void * 
  */
 void ipasir_set_learn (void * solver, void * state, int max_length, void (*learn)(void * state, int * clause));
 
+
+void ipasir_set_conflicts (void * solver, int conflicts);
+
 #endif

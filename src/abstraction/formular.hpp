@@ -1,7 +1,11 @@
 #pragma once
 
 extern "C" {
+#ifdef GLUCOSE
+#include "sat/glucose4/ipasir.h"
+#else
 #include "sat/ipasir.h"
+#endif
 }
 
 #include "src/problem/problem.hpp"
@@ -293,10 +297,16 @@ public:
   inline void close() { clauses.emplace_back(); }
 
   // assume goal and try to solve
-  bool solve(double timeLimit = std::numeric_limits<double>::infinity()) {
+  bool solve(double timeLimit  = std::numeric_limits<double>::infinity(),
+             int conflictLimit = -1) {
     LOG(5) << "start sat solver";
     addClausesForAllSteps();
     activateAssumptions();
+#ifdef GLUCOSE
+    if (conflictLimit > -1) {
+      ipasir_set_conflicts(solver, conflictLimit);
+    }
+#endif
     double endTime = Logger::getTime() + timeLimit;
     ipasir_set_terminate(solver, &endTime, [](void *time) {
       return static_cast<int>(Logger::getTime() > *static_cast<double *>(time));
