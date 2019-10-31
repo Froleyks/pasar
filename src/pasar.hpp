@@ -16,8 +16,8 @@ private:
   int sparsification_        = 1;
   bool contraction_          = false;
   double abstractionTimeout_ = std::numeric_limits<double>::infinity();
-  int abstractionLimit_      = -1;
   double searchTimeout_      = std::numeric_limits<double>::infinity();
+  int searchLimit_           = -1;
 
   Problem &problem_;
 
@@ -229,7 +229,7 @@ public:
     if (!solvedAbstraction) {
       LOG(4) << "faild abstraction ";
       guideStates = {problem_.goalState};
-      return search.search(guideStates, plan, searchTimeout_);
+      return search.search(guideStates, plan, searchTimeout_, searchLimit_);
     }
 
     switch (sparsification_) {
@@ -286,7 +286,7 @@ public:
     plan.clear();
 
     if (searchTimeout_ != 0) {
-      solved = search.search(guideStates, plan, searchTimeout_);
+      solved = search.search(guideStates, plan, searchTimeout_, searchLimit_);
       if (solved) {
         return true;
       }
@@ -320,6 +320,8 @@ public:
     }
     abstractionTimeout_ = abstractionTimeout;
   }
+
+  void setSearchLimit(int searchLimit) { searchLimit_ = searchLimit; }
 
   void setSearchTimeout(double searchTimeout) {
     if (searchTimeout < 0) {

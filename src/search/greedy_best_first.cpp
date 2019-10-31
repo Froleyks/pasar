@@ -50,7 +50,8 @@ inline void GreedyBestFirst::updateGuideState(
 }
 
 bool GreedyBestFirst::search(std::vector<State> &guideStates,
-                             std::vector<action_t> &plan, double timeLimit) {
+                             std::vector<action_t> &plan, double timeLimit,
+                             int nodeLimit) {
   LOG(4) << "start forward search";
 
   double endTime = Logger::getTime() + timeLimit;
@@ -69,12 +70,15 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
   std::vector<std::pair<size_t, size_t>> milestones{{-1, 0}};
   milestones.reserve(guideStates.size());
 
-  size_t checkTime = 0;
+  int exploredNodes = 0;
   // used to indicate if there is an action in the set of applicable actions
   // that might reach this state
   std::vector<char> reachedGuideHint(guideStates.size(), false);
   while (!assignmentHolds(problem_.goal, state)) {
-    if (checkTime++ % 128 == 0 && Logger::getTime() > endTime) {
+    std::cout << "exp " << exploredNodes << " " << nodeLimit << std::endl;
+    if (exploredNodes++ % 128 == 0 &&
+        ((nodeLimit > -1 && exploredNodes > nodeLimit) ||
+         Logger::getTime() > endTime)) {
       plan.clear();
       return false;
     }

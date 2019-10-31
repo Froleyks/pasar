@@ -27,6 +27,7 @@ void outputPlan(std::string &outputFile, std::string &problemFile,
 }
 
 void addDefaults(ParameterProcessor &params) {
+  params.addDefault("v", "0", "verbosity");
   params.addDefault("s", "0",
                     "abstraction and search schedules\n"
                     "\t 0: pasar\n"
@@ -123,6 +124,7 @@ void runPasar(const ParameterProcessor &params, Pasar &solver,
   unsigned sameMakespanLimit = static_cast<unsigned>(params.getInt("sml"));
   unsigned sameMakespanCount = 0;
   solver.setAbstractionTimeout(params.getDouble("at"));
+  solver.setSearchLimit(params.getInt("sl"));
   solver.setSearchTimeout(params.getDouble("st"));
 
   abstraction.setConflictLimitPerMakespan(params.getInt("ml"));
@@ -173,6 +175,7 @@ void runSchedule(const ParameterProcessor &params, Pasar &solver,
   case 1: {
     LOG(2) << "running schedule " << schedule << " portfolio";
     solver.setAbstractionTimeout(0);
+    solver.setSearchLimit(-1);
     solver.setSearchTimeout(100);
     NoAbstraction dummy(problem);
     GreedyBestFirst search(problem);
@@ -185,6 +188,7 @@ void runSchedule(const ParameterProcessor &params, Pasar &solver,
     if (!solved) {
       Exist abstraction(problem, true);
       abstraction.setFallback(params.getInt("ef"));
+      solver.setSearchLimit(params.getInt("sl"));
       solver.setSearchTimeout(params.getDouble("st"));
       solver.setAbstractionTimeout(params.getDouble("at"));
       while (!solved) {

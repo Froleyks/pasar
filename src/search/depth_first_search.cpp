@@ -9,7 +9,8 @@ DepthFirstSearch::DepthFirstSearch(Problem &problem) : BaseSearch(problem) {
 
 bool DepthFirstSearch::search(std::vector<State> &guideStates
                               __attribute__((unused)),
-                              std::vector<action_t> &plan, double timeLimit) {
+                              std::vector<action_t> &plan, double timeLimit,
+                              int nodeLimit) {
   LOG(4) << "start forward search";
 
   double endTime = Logger::getTime() + timeLimit;
@@ -24,9 +25,11 @@ bool DepthFirstSearch::search(std::vector<State> &guideStates
   std::vector<action_t> appActions;
   getApplicableActions(state, appActions);
 
-  size_t checkTime = 0;
+  int exploredNodes = 0;
   while (!assignmentHolds(problem_.goal, state)) {
-    if (checkTime++ % 128 == 0 && Logger::getTime() > endTime) {
+    if (exploredNodes++ % 128 == 0 &&
+        ((nodeLimit > -1 && exploredNodes > nodeLimit) ||
+         Logger::getTime() > endTime)) {
       plan.clear();
       return false;
     }

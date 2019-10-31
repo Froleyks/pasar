@@ -13,5 +13,6 @@ private:
 public:
   GreedyBestFirst(Problem &problem);
   bool search(std::vector<State> &guideStates, std::vector<action_t> &plan,
-              double timeLimit = std::numeric_limits<double>::infinity());
+              double timeLimit = std::numeric_limits<double>::infinity(),
+              int nodeLimit    = -1);
 };
