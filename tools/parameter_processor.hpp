@@ -38,7 +38,8 @@ public:
       if (arg[0] == '-') {
         // parameter
         arg++;
-        if (i + 1 == argc || argv[i + 1][0] == '-') {
+        if (i + 1 == argc ||
+            (argv[i + 1][0] == '-' && !isdigit(argv[i + 1][1]))) {
           parameters[arg] = "1";
         } else {
           i++;
