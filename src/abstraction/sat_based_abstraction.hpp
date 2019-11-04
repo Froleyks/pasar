@@ -285,4 +285,62 @@ public:
     }
     return solved;
   }
+
+  template <class Search>
+  inline int solveAndSearch(std::vector<AbstractPlan::Step> &steps,
+                            Search search, std::vector<action_t> &plan) {
+    if (conflictLimitPerMakespan_ == 0 || timeLimitPerMakespan_ == 0) {
+      return 0;
+    }
+    LOG(4) << "start solving abstraction";
+
+    double endTime = Logger::getTime() + abstractionTimeout_;
+    addNewActions();
+    size_t makespan = f.getMakespan();
+    if (makespan == 1 && initialMakespan_ > 1) {
+      makespan = f.increaseMakespan(initialMakespan_ - 1);
+    }
+    double timeLimit =
+        std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
+    bool solved = f.solve(timeLimit, conflictLimitPerMakespan_);
+    if (solved) {
+      LOG(4) << "solved abstraction in initial makespan " << makespan;
+      extractStepSequence(steps);
+      return 2;
+    }
+    search.reset({problem_.goalState});
+    solved = search.continueSearch({problem_.goalState}, plan);
+    if (solved) {
+      return 3;
+    }
+    while (!solved) {
+      if (endTime <= Logger::getTime()) {
+        LOG(5) << "exceeded total time limit";
+        break;
+      }
+      unsigned increase = std::max(
+          static_cast<unsigned>(
+              (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
+          1u);
+      makespan = f.increaseMakespan(increase);
+
+      timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
+      LOG(5) << "start solving makespan " << makespan;
+      solved = f.solve(timeLimit, conflictLimitPerMakespan_);
+      if (!solved) {
+        solved = search.continueSearch({problem_.goalState}, plan);
+        if (solved) {
+          return 3;
+        }
+      }
+    }
+    if (solved) {
+      LOG(4) << "solved abstraction in makespan " << makespan;
+      extractStepSequence(steps);
+    } else {
+      LOG(4) << "failed in makespan " << makespan << Logger::getTime() - endTime
+             << " over time limit";
+    }
+    return solved;
+  }
 };

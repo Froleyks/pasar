@@ -10,6 +10,7 @@ class BaseAbstraction {
 private:
 protected:
   Problem &problem_;
+  double abstractionTimeout_ = std::numeric_limits<double>::infinity();
 
   // (variable, value)s ↦ actions; v → a ⇔ v ∈ eff(a)
   std::vector<std::vector<std::vector<action_t>>> valueSupport;
@@ -194,5 +195,12 @@ public:
     LOG(3) << "average length "
            << static_cast<double>(sumRefineLength) /
                   static_cast<double>(numRefinements);
+  }
+
+  void setAbstractionTimeout(double abstractionTimeout) {
+    if (abstractionTimeout < 0) {
+      abstractionTimeout = std::numeric_limits<double>::infinity();
+    }
+    abstractionTimeout_ = abstractionTimeout;
   }
 };

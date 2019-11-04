@@ -14,6 +14,14 @@ public:
   NoAbstraction(Problem problem __attribute__((unused))) {}
   static const bool isSatBased = false;
 
+  template <class Search>
+  inline bool
+  solveAndSearch(std::vector<AbstractPlan::Step> &steps __attribute__((unused)),
+                 Search search __attribute__((unused)),
+                 std::vector<action_t> &plan __attribute__((unused))) {
+    return false;
+  }
+
   inline bool
   solve(std::vector<AbstractPlan::Step> &steps __attribute__((unused)),
         double timeLimit

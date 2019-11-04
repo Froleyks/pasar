@@ -13,11 +13,8 @@
 class Pasar {
 private:
   // parameters
-  int sparsification_        = 1;
-  bool contraction_          = false;
-  double abstractionTimeout_ = std::numeric_limits<double>::infinity();
-  double searchTimeout_      = std::numeric_limits<double>::infinity();
-  int searchLimit_           = -1;
+  int sparsification_ = 1;
+  bool contraction_   = false;
 
   Problem &problem_;
 
@@ -200,19 +197,26 @@ public:
 
   template <class Abstraction, class Search>
   bool findPlan(Abstraction &abstraction, Search &search,
-                std::vector<action_t> &plan, unsigned &sameMakespanCount) {
+                std::vector<action_t> &plan, unsigned &sameMakespanCount,
+                bool interleave = false) {
     AbstractPlan abstractPlan;
     bool solvedAbstraction = false;
-    if (abstractionTimeout_ != 0) {
-      int abstractionReturn =
-          abstraction.solve(abstractPlan.steps, abstractionTimeout_);
-      if (abstractionReturn == 2) {
-        sameMakespanCount++;
-      } else {
-        sameMakespanCount = 0;
+    int abstractionReturn  = false;
+    if (interleave) {
+      abstractionReturn =
+          abstraction.solveAndSearch(abstractPlan.steps, search, plan);
+      if (abstractionReturn == 3) {
+        return true;
       }
-      solvedAbstraction = abstractionReturn;
+    } else {
+      abstractionReturn = abstraction.solve(abstractPlan.steps);
     }
+    if (abstractionReturn == 2) {
+      sameMakespanCount++;
+    } else {
+      sameMakespanCount = 0;
+    }
+    solvedAbstraction = abstractionReturn;
 
     if (Logger::currentLogLevel() >= 8) {
       std::string levenshtein = "";
@@ -229,7 +233,7 @@ public:
     if (!solvedAbstraction) {
       LOG(4) << "faild abstraction ";
       guideStates = {problem_.goalState};
-      return search.search(guideStates, plan, searchTimeout_, searchLimit_);
+      return search.search(guideStates, plan);
     }
 
     switch (sparsification_) {
@@ -285,11 +289,9 @@ public:
 
     plan.clear();
 
-    if (searchTimeout_ != 0) {
-      solved = search.search(guideStates, plan, searchTimeout_, searchLimit_);
-      if (solved) {
-        return true;
-      }
+    solved = search.search(guideStates, plan);
+    if (solved) {
+      return true;
     }
 
     LOG(4) << "search failed";
@@ -313,20 +315,4 @@ public:
   }
 
   void setContraction(bool contraction) { contraction_ = contraction; }
-
-  void setAbstractionTimeout(double abstractionTimeout) {
-    if (abstractionTimeout < 0) {
-      abstractionTimeout = std::numeric_limits<double>::infinity();
-    }
-    abstractionTimeout_ = abstractionTimeout;
-  }
-
-  void setSearchLimit(int searchLimit) { searchLimit_ = searchLimit; }
-
-  void setSearchTimeout(double searchTimeout) {
-    if (searchTimeout < 0) {
-      searchTimeout = std::numeric_limits<double>::infinity();
-    }
-    searchTimeout_ = searchTimeout;
-  }
 };

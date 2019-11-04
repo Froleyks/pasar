@@ -5,14 +5,14 @@
 #include <set>
 
 // public
-GreedyBestFirst::GreedyBestFirst(Problem &problem) : BaseSearch(problem) {
+GreedyBestFirst::GreedyBestFirst(Problem &problem)
+    : BaseSearch(problem), state(problem.initialState), compactState(state) {
   computeActionSupport();
+  reset({problem.goalState});
 }
 
-inline void GreedyBestFirst::updateGuideState(
-    State &state, std::vector<State> &guideStates, std::vector<action_t> &plan,
-    std::vector<std::pair<size_t, size_t>> &milestones,
-    std::vector<char> &reachedGuideHint) {
+inline void GreedyBestFirst::updateGuideState(const std::vector<State> &guideStates,
+                                              std::vector<action_t> &plan) {
   // ignore actual goal state
   if (guideStates.size() < 2) {
     return;
@@ -49,43 +49,22 @@ inline void GreedyBestFirst::updateGuideState(
   }
 }
 
-bool GreedyBestFirst::search(std::vector<State> &guideStates,
-                             std::vector<action_t> &plan, double timeLimit,
-                             int nodeLimit) {
+inline bool GreedyBestFirst::continueSearch(const std::vector<State> &guideStates,
+                                     std::vector<action_t> &plan) {
   LOG(4) << "start forward search";
 
-  double endTime = Logger::getTime() + timeLimit;
-
-  firstGuideState = 0;
-  State state     = problem_.initialState;
-  CompactState compactState(state);
-  StateHashSet knownStates{compactState};
-  std::vector<Assignment> changeHistory;
-
-  updateActionSupport();
-  WeightedActionSet appActions;
-  getApplicableActions(state, guideStates, appActions);
-
-  // before plan index <scond> <first> was the highest reached guideStates
-  std::vector<std::pair<size_t, size_t>> milestones{{-1, 0}};
-  milestones.reserve(guideStates.size());
-
+  double endTime    = Logger::getTime() + searchTimeout_;
   int exploredNodes = 0;
-  // used to indicate if there is an action in the set of applicable actions
-  // that might reach this state
-  std::vector<char> reachedGuideHint(guideStates.size(), false);
+
   while (!assignmentHolds(problem_.goal, state)) {
-    std::cout << "exp " << exploredNodes << " " << nodeLimit << std::endl;
     if (exploredNodes++ % 128 == 0 &&
-        ((nodeLimit > -1 && exploredNodes > nodeLimit) ||
+        ((searchLimit_ > -1 && exploredNodes > searchLimit_) ||
          Logger::getTime() > endTime)) {
-      plan.clear();
       return false;
     }
     if (appActions.empty()) {
       // deadend -> backtrack
       if (changeHistory.empty()) {
-        plan.clear();
         LOG(4) << "no actions applicable -> Problem unsolveable";
         return false;
       }
@@ -114,8 +93,7 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
           plan.push_back(a);
           changeHistory.push_back(oldValues);
           applyAssignment(problem_.eff[a], state);
-          updateGuideState(state, guideStates, plan, milestones,
-                           reachedGuideHint);
+          updateGuideState(guideStates, plan);
           updateApplicableActions(state, problem_.eff[a], guideStates,
                                   appActions, reachedGuideHint);
           appliedAction = true;
@@ -125,7 +103,6 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
       if (!appliedAction) {
         // all child states where visited -> backtrack
         if (changeHistory.empty()) {
-          plan.clear();
           LOG(4) << "exhausted search space";
           return false;
         }
@@ -145,4 +122,35 @@ bool GreedyBestFirst::search(std::vector<State> &guideStates,
     }
   }
   return true;
+}
+
+inline void GreedyBestFirst::reset(const std::vector<State> &guideStates) {
+  firstGuideState = 0;
+  state           = problem_.initialState;
+  compactState    = state;
+  knownStates     = {compactState};
+  updateActionSupport();
+  getApplicableActions(state, guideStates, appActions);
+
+  // before plan index <scond> <first> was the highest reached guideStates
+  milestones = {{-1, 0}};
+  milestones.reserve(guideStates.size());
+
+  // used to indicate if there is an action in the set of applicable actions
+  // that might reach this state
+  reachedGuideHint.resize(guideStates.size(), false);
+}
+
+bool GreedyBestFirst::search(std::vector<State> &guideStates,
+                             std::vector<action_t> &plan) {
+  if (searchTimeout_ == 0 || searchLimit_ == 0) {
+    return false;
+  }
+  reset(guideStates);
+
+  bool solved = continueSearch(guideStates, plan);
+  if (!solved) {
+    plan.clear();
+  }
+  return solved;
 }

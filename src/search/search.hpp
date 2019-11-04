@@ -21,6 +21,9 @@ protected:
 
   unsigned seed_ = 42;
 
+  double searchTimeout_      = std::numeric_limits<double>::infinity();
+  int searchLimit_           = -1;
+
   // sort actions by gain
   struct WeightedAction {
     float gain_;
@@ -122,7 +125,7 @@ protected:
   }
 
   inline float gainOfAssignment(const Assignment &a, const State &state,
-                                std::vector<State> &guideStates) {
+                                const std::vector<State> &guideStates) {
     // gainDecayFactor_ is small enough so that the gain cannot overflow
     assert(gainDecayFactor_ <
            std::pow((std::numeric_limits<float>::max() - noiseRange) /
@@ -201,7 +204,7 @@ protected:
   }
 
   inline void getApplicableActions(const State &state,
-                                   std::vector<State> &guideStates,
+                                   const std::vector<State> &guideStates,
                                    WeightedActionSet &appActions) {
     appActions.clear();
     for (action_t a = 0; a < problem_.numActions; ++a) {
@@ -237,7 +240,7 @@ protected:
 
   inline void updateApplicableActions(const State &state,
                                       const Assignment &newValues,
-                                      std::vector<State> &guideStates,
+                                      const std::vector<State> &guideStates,
                                       WeightedActionSet &appActions) {
     // remove no longer applicable actions
     WeightedActionSet oldAppActions = std::move(appActions);
@@ -264,7 +267,7 @@ protected:
   // return a hint if a guide state could be reached
   inline void updateApplicableActions(const State &state,
                                       const Assignment &newValues,
-                                      std::vector<State> &guideStates,
+                                      const std::vector<State> &guideStates,
                                       WeightedActionSet &appActions,
                                       std::vector<char> &reachedGuideHint) {
     reachedGuideHint.resize(guideStates.size(), false);
@@ -308,6 +311,15 @@ public:
 
   void setGainDecayFactor(double gainDecayFactor) {
     gainDecayFactor_ = static_cast<float>(gainDecayFactor);
+  }
+
+  void setSearchLimit(int searchLimit) { searchLimit_ = searchLimit; }
+
+  void setSearchTimeout(double searchTimeout) {
+    if (searchTimeout < 0) {
+      searchTimeout = std::numeric_limits<double>::infinity();
+    }
+    searchTimeout_ = searchTimeout;
   }
 
   // check preconditions and goal
