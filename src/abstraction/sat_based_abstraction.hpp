@@ -220,7 +220,7 @@ public:
       : BaseAbstraction(problem), f(problem, togglable) {}
 
   inline void setConflictLimitPerMakespan(int conflictLimitPerMakespan) {
-#ifndef GLUCOSE
+#ifndef IPASIR_EXTENSION
     // only glucose supports this setting
     assert(conflictLimitPerMakespan < 0);
 #endif

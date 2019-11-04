@@ -1,7 +1,7 @@
 #pragma once
 
 extern "C" {
-#ifdef GLUCOSE
+#ifdef IPASIR_EXTENSION
 #include "sat/glucose4/ipasir.h"
 #else
 #include "sat/ipasir.h"
@@ -302,7 +302,7 @@ public:
     LOG(5) << "start sat solver";
     addClausesForAllSteps();
     activateAssumptions();
-#ifdef GLUCOSE
+#ifdef IPASIR_EXTENSION
     if (conflictLimit > -1) {
       ipasir_set_conflicts(solver, conflictLimit);
     }
