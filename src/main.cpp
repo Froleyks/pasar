@@ -57,7 +57,7 @@ void addDefaults(ParameterProcessor &params) {
                     "\t-1: infinity\n"
                     "\t 0: disable abstraction");
   params.addDefault("ml", "20000",
-                    "\tnumber of conflicts(CDCL) before makespan is aborted\n"
+                    "number of conflicts(CDCL) before makespan is aborted\n"
                     "\t-1: infinity\n"
                     "\t 0: disable abstraction");
   params.addDefault("mt", "-1",
@@ -79,7 +79,7 @@ void addDefaults(ParameterProcessor &params) {
 
   // search
   params.addDefault("sl", "50000",
-                    "\tnumber of nodes explored before search gives up\n"
+                    "number of nodes explored before search gives up\n"
                     "\t-1: infinity\n"
                     "\t 0: disable search");
   params.addDefault("st", "-1",
@@ -87,7 +87,7 @@ void addDefaults(ParameterProcessor &params) {
                     "\t-1: infinity\n"
                     "\t 0: disable search");
   params.addDefault("seed", "42",
-                    "\t seed used for random tie breaking during search");
+                    "seed used for random tie breaking during search");
   params.addDefault(
       "gdf", "1.2",
       "gainDecayFactor ≥ 1\n"
@@ -98,7 +98,7 @@ void addDefaults(ParameterProcessor &params) {
                     "\t 1: interleave search and heuristic computation");
   params.addDefault(
       "isl", "300000",
-      "\tnumber of nodes explored before search gives up during interleave\n"
+      "number of nodes explored before search gives up during interleave\n"
       "\t-1: infinity\n"
       "\t 0: disable search");
   params.addDefault("ist", "-1",

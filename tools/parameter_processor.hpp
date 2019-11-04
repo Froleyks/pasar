@@ -153,7 +153,7 @@ public:
     separator += "\n";
     for (auto [name, defaultValue, description] : defaultParameters) {
       std::cout << separator;
-      std::cout << std::setw(static_cast<int>(maxName)) << name;
+      std::cout << std::left << std::setw(static_cast<int>(maxName)) << name;
       std::cout << std::right << std::setw(static_cast<int>(maxValue))
                 << defaultValue << "  ";
       std::cout << std::left << description;
