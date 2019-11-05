@@ -296,19 +296,19 @@ public:
     getInterferenceGraph(edgeList);
     switch (fallback_) {
     case 0: {
-      LOG(3) << "adding all interferances on " << edgeList.size()
+      LOG(3) << "adding all interferences on " << edgeList.size()
              << " edges (exist)";
       refine(edgeList, problem_.numActions);
       break;
     }
     case 1: {
-      LOG(3) << "adding all interferances on " << edgeList.size()
+      LOG(3) << "adding all interferences on " << edgeList.size()
              << " edges (foreach)";
       addMutexes(edgeList);
       break;
     }
     case 2: {
-      LOG(3) << "adding all interferances on " << edgeList.size()
+      LOG(3) << "adding all interferences on " << edgeList.size()
              << " edges (cycle break)";
       std::vector<unsigned> edges;
       std::vector<unsigned> first;

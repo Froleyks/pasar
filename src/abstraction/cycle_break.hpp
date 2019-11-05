@@ -24,7 +24,7 @@ public:
   inline void refine() {
     std::vector<std::pair<action_t, action_t>> edgeList;
     getInterferenceGraph(edgeList);
-    LOG(3) << "adding all interferances on " << edgeList.size() << " edges";
+    LOG(3) << "adding all interferences on " << edgeList.size() << " edges";
     refine(edgeList, problem_.numActions);
   }
 

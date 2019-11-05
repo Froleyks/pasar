@@ -144,7 +144,7 @@ private:
           abstraction.fixStep(abstractPlan.states[s], abstractPlan.steps[s],
                               abstractPlan.states[s + 1], planForStep);
       if (fixed) {
-        LOG(5) << "step " << s << " fixed";
+        LOG(5) << "step " << s << " fixed (actions: " << abstractPlan.steps[s].size() << ")";
         stepFixed[s] = true;
         plan.insert(plan.begin(), addActionToProblem(problem_, planForStep));
         if (planForStep.size() > 1) {
@@ -152,7 +152,7 @@ private:
           abstraction.sumSkipped += planForStep.size();
         }
       } else {
-        LOG(5) << "step " << s << " failed";
+        LOG(5) << "step " << s << " failed (actions: " << abstractPlan.steps[s].size() << ")";
         fixedPlan = false;
       }
     }

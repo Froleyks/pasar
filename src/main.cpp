@@ -265,8 +265,16 @@ int main(int argc, char *argv[]) {
   std::string problemFile = params.getFilename("sas");
   size_t seed             = static_cast<size_t>(params.getInt("seed"));
   Problem problem(problemFile, seed);
-  LOG(3) << "Variables " << problem.numVariables << " Actions "
-         << problem.numActions;
+  if (Logger::currentLogLevel() >= 4) {
+    size_t avg = 0;
+    for (auto &v : problem.numValues) {
+      avg += v;
+    }
+    avg /= problem.numValues.size();
+    LOG(3) << "Actions " << problem.numActions << " Variables "
+           << problem.numVariables << " non bool " << problem.numValues.size()
+           << " avg size " << avg;
+  }
   std::vector<action_t> plan;
 
   Pasar solver(problem);

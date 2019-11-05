@@ -190,7 +190,7 @@ public:
              << static_cast<double>(sumSkipped) /
                     static_cast<double>(numLearnedActions);
     }
-    LOG(3) << "Added " << numRefinements << " interferances in "
+    LOG(3) << "Added " << numRefinements << " interferences in "
            << numRefineSteps << " steps";
     LOG(3) << "average length "
            << static_cast<double>(sumRefineLength) /
