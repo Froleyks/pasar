@@ -303,13 +303,16 @@ public:
     addClausesForAllSteps();
     activateAssumptions();
 #ifdef IPASIR_EXTENSION
-    if (conflictLimit > -1) {
-      ipasir_set_conflicts(solver, conflictLimit);
-    }
+    ipasir_set_conflicts(solver, conflictLimit);
 #endif
     double endTime = Logger::getTime() + timeLimit;
     ipasir_set_terminate(solver, &endTime, [](void *time) {
-      return static_cast<int>(Logger::getTime() > *static_cast<double *>(time));
+      int result =
+          static_cast<int>(Logger::getTime() > *static_cast<double *>(time));
+      if (result) {
+        LOG(6) << "sat solver timed out";
+      }
+      return result;
     });
     int satRes = ipasir_solve(solver);
     return satRes == 10;

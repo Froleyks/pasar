@@ -121,6 +121,12 @@ int ipasir_val (void * s, int l) { return import (s)->val (l); }
 int ipasir_failed (void * s, int l) { return import (s)->failed (l); }
 void ipasir_set_terminate (void * s, void * state, int (*callback)(void * state)) { import(s)->setTermCallback(state, callback); }
 void ipasir_set_learn (void * s, void * state, int max_length, void (*learn)(void * state, int * clause)) { import(s)->setLearnCallback(state, max_length, learn); }
-void ipasir_set_conflicts(void * s, int conflicts){ import(s)->setConfBudget(conflicts); }
+void ipasir_set_conflicts(void *s, int conflicts) {
+  if (conflicts < 0) {
+    import(s)->setConfBudget(std::numeric_limits<int64_t>::min());
+  } else {
+    import(s)->setConfBudget(conflicts);
+  }
+}
 };
 
