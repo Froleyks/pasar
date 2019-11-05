@@ -10,7 +10,7 @@
 *** Different SAT Solvers
     Any SAT solver that implements the IPASIR interface can be used. The solvers glucose, lingeling, minisat, and picosat can be build with make pasar_<solver>.
 **** IPASIR EXTENSION
-     The parameter *ml* is used to limit the number of conflicts (CDCL) that may occur while solving a makespan. The IPASIR interface does not support it. To use the parameter with a SAT solver other than this version of glucose [[file:sat/glucose4/ipasir.h][ipasir_set_conflicts]] has to be implemented and *IPASIR_EXTENSION* defined.
+     The parameter *ml* is used to limit the number of conflicts (CDCL) that may occur while solving a makespan. The IPASIR interface does not support this. To use the parameter with a SAT solver other than this version of glucose [[file:sat/glucose4/ipasir.h][ipasir_set_conflicts]] has to be implemented and [[file:CMakeLists.txt][IPASIR_EXTENSION]] defined.
 *** Help
     Executing the program without parameters prints a help message.
 ** Algorithm Description
