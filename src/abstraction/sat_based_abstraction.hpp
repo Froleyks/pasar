@@ -9,6 +9,7 @@ protected:
   double timeLimitPerMakespan_  = std::numeric_limits<double>::infinity();
   unsigned initialMakespan_     = 5;
   double makespanIncrease_      = 1.2;
+  unsigned cutOffMakespan_ = 5000000;
 
   action_t firstActionToAdd = 0;
   size_t firstNoGoodToAdd   = 0;
@@ -242,6 +243,10 @@ public:
     makespanIncrease_ = makespanIncrease;
   }
 
+  inline void setCutOffMakespan(int cutOffMakespan) {
+    cutOffMakespan_ = static_cast<unsigned>(cutOffMakespan);
+  }
+
   // return 0: unsolevd 1: solved in increased makespan 2: solved in initial
   // makespan
   inline int solve(std::vector<AbstractPlan::Step> &steps,
@@ -267,8 +272,11 @@ public:
               (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
           1u);
       makespan = f.increaseMakespan(increase);
-
       timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
+      if (makespan > cutOffMakespan_) {
+        timeLimit     = std::numeric_limits<double>::infinity();
+        conflictLimitPerMakespan_ = -1;
+      }
       LOG(5) << "start solving makespan " << makespan;
       solved = f.solve(timeLimit, conflictLimitPerMakespan_);
       if (endTime <= Logger::getTime()) {
@@ -323,8 +331,11 @@ public:
               (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
           1u);
       makespan = f.increaseMakespan(increase);
-
       timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
+      if (makespan > cutOffMakespan_) {
+        timeLimit     = std::numeric_limits<double>::infinity();
+        conflictLimitPerMakespan_ = -1;
+      }
       LOG(5) << "start solving makespan " << makespan;
       solved = f.solve(timeLimit, conflictLimitPerMakespan_);
       if (!solved) {

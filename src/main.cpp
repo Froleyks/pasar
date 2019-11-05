@@ -76,6 +76,7 @@ void addDefaults(ParameterProcessor &params) {
                     "\t 0: exist\n"
                     "\t 1: foreach\n"
                     "\t 2: cycle break");
+  params.addDefault("com", "5000000", "cut of makespan");
 
   // search
   params.addDefault("sl", "50000",
@@ -115,6 +116,7 @@ void runEncoding(const ParameterProcessor &params, Abstraction &abstraction,
   abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
   abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
   abstraction.setMakespanIncrease(params.getDouble("mi"));
+  abstraction.setCutOffMakespan(params.getInt("com"));
   std::vector<AbstractPlan::Step> steps;
   abstraction.solve(steps);
   // flatten plan
@@ -138,6 +140,7 @@ void runPasar(const ParameterProcessor &params, Pasar &solver,
   abstraction.setTimeLimitPerMakespan(params.getDouble("mt"));
   abstraction.setInitialMakespan(static_cast<unsigned>(params.getInt("im")));
   abstraction.setMakespanIncrease(params.getDouble("mi"));
+  abstraction.setCutOffMakespan(params.getInt("com"));
 
   search.setSeed(static_cast<unsigned>(params.getInt("seed")));
   search.setGainDecayFactor(params.getDouble("gdf"));
