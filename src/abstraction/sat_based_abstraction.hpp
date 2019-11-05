@@ -9,7 +9,7 @@ protected:
   double timeLimitPerMakespan_  = std::numeric_limits<double>::infinity();
   unsigned initialMakespan_     = 5;
   double makespanIncrease_      = 1.2;
-  unsigned cutOffMakespan_ = 5000000;
+  unsigned cutOffMakespan_      = 5000000;
 
   action_t firstActionToAdd = 0;
   size_t firstNoGoodToAdd   = 0;
@@ -271,10 +271,10 @@ public:
           static_cast<unsigned>(
               (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
           1u);
-      makespan = f.increaseMakespan(increase);
+      makespan  = f.increaseMakespan(increase);
       timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
       if (makespan > cutOffMakespan_) {
-        timeLimit     = std::numeric_limits<double>::infinity();
+        timeLimit                 = std::numeric_limits<double>::infinity();
         conflictLimitPerMakespan_ = -1;
       }
       LOG(5) << "start solving makespan " << makespan;
@@ -300,6 +300,12 @@ public:
     if (conflictLimitPerMakespan_ == 0 || timeLimitPerMakespan_ == 0) {
       return 0;
     }
+    bool solved = false;
+    search.reset({problem_.goalState});
+    solved = search.continueSearch({problem_.goalState}, plan);
+    if (solved) {
+      return 3;
+    }
     LOG(4) << "start solving abstraction";
 
     double endTime = Logger::getTime() + abstractionTimeout_;
@@ -310,40 +316,34 @@ public:
     }
     double timeLimit =
         std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
-    bool solved = f.solve(timeLimit, conflictLimitPerMakespan_);
+    solved = f.solve(timeLimit, conflictLimitPerMakespan_);
     if (solved) {
       LOG(4) << "solved abstraction in initial makespan " << makespan;
       extractStepSequence(steps);
       return 2;
     }
-    search.reset({problem_.goalState});
-    solved = search.continueSearch({problem_.goalState}, plan);
-    if (solved) {
-      return 3;
-    }
     while (!solved) {
-      if (endTime <= Logger::getTime()) {
-        LOG(5) << "exceeded total time limit";
-        break;
+      solved = search.continueSearch({problem_.goalState}, plan);
+      if (solved) {
+        return 3;
       }
       unsigned increase = std::max(
           static_cast<unsigned>(
               (makespanIncrease_ - 1) * static_cast<double>(makespan) + 0.1),
           1u);
-      makespan = f.increaseMakespan(increase);
+      makespan  = f.increaseMakespan(increase);
       timeLimit = std::min(endTime - Logger::getTime(), timeLimitPerMakespan_);
       if (makespan > cutOffMakespan_) {
-        timeLimit     = std::numeric_limits<double>::infinity();
+        endTime                   = std::numeric_limits<double>::infinity();
+        timeLimit                 = std::numeric_limits<double>::infinity();
         conflictLimitPerMakespan_ = -1;
+      }
+      if (endTime <= Logger::getTime()) {
+        LOG(5) << "exceeded total time limit";
+        break;
       }
       LOG(5) << "start solving makespan " << makespan;
       solved = f.solve(timeLimit, conflictLimitPerMakespan_);
-      if (!solved) {
-        solved = search.continueSearch({problem_.goalState}, plan);
-        if (solved) {
-          return 3;
-        }
-      }
     }
     if (solved) {
       LOG(4) << "solved abstraction in makespan " << makespan;
