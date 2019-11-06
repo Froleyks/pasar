@@ -267,10 +267,12 @@ int main(int argc, char *argv[]) {
   Problem problem(problemFile, seed);
   if (Logger::currentLogLevel() >= 4) {
     size_t avg = 0;
-    for (auto &v : problem.numValues) {
-      avg += v;
+    if (problem.numValues.size()) {
+      for (auto &v : problem.numValues) {
+        avg += v;
+      }
+      avg /= problem.numValues.size();
     }
-    avg /= problem.numValues.size();
     LOG(3) << "Actions " << problem.numActions << " Variables "
            << problem.numVariables << " non bool " << problem.numValues.size()
            << " avg size " << avg;
