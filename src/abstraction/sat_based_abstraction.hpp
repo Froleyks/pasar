@@ -320,6 +320,7 @@ public:
     if (solved) {
       LOG(4) << "solved abstraction in initial makespan " << makespan;
       extractStepSequence(steps);
+      plan.clear();
       return 2;
     }
     while (!solved) {
@@ -352,6 +353,7 @@ public:
       LOG(4) << "failed in makespan " << makespan << Logger::getTime() - endTime
              << " over time limit";
     }
+    plan.clear();
     return solved;
   }
 };
